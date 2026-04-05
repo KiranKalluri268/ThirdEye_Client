@@ -18,6 +18,18 @@ const api = axios.create({
 });
 
 /**
+ * @description Request interceptor — attaches the JWT from localStorage
+ *              if it exists, bypassing strict third-party cookie blockers.
+ */
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('thirdeye_token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+/**
  * @description Response interceptor — unwraps the Axios response envelope
  *              and handles 401 (session expired) by redirecting to login.
  */

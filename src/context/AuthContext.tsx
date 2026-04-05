@@ -58,7 +58,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * @throws {AxiosError} On invalid credentials
    */
   const login = async (email: string, password: string): Promise<void> => {
-    const res = await api.post<{ success: boolean; user: IUser }>('/auth/login', { email, password });
+    const res = await api.post<{ success: boolean; token: string; user: IUser }>('/auth/login', { email, password });
+    if (res.data.token) {
+      localStorage.setItem('thirdeye_token', res.data.token);
+    }
     setUser(res.data.user);
   };
 
@@ -70,7 +73,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * @param role     - 'student' | 'instructor'
    */
   const register = async (name: string, email: string, password: string, role: string): Promise<void> => {
-    const res = await api.post<{ success: boolean; user: IUser }>('/auth/register', { name, email, password, role });
+    const res = await api.post<{ success: boolean; token: string; user: IUser }>('/auth/register', { name, email, password, role });
+    if (res.data.token) {
+      localStorage.setItem('thirdeye_token', res.data.token);
+    }
     setUser(res.data.user);
   };
 
@@ -79,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const logout = async (): Promise<void> => {
     await api.post('/auth/logout');
+    localStorage.removeItem('thirdeye_token');
     setUser(null);
   };
 
