@@ -38,8 +38,8 @@ const MEDIAPIPE_WASM_URL =
 const FACE_MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
-/** Interval between REST saves and socket emits (milliseconds) */
-const SAVE_INTERVAL_MS = 3000;
+/** Interval between periodic saves and socket emits (milliseconds) */
+const SAVE_INTERVAL_MS = 2000;  // reduced from 3000 — halves worst-case instructor badge lag
 
 
 interface UseEngagementParams {
@@ -164,7 +164,20 @@ const useEngagement = ({
     const result = latestResultRef.current;
     if (!result || !roomCode) return;
 
-    // 1. Persist to MongoDB via REST
+    // Always emit via socket so the instructor's live view stays current.
+    if (socket.connected) {
+      socket.emit('engagement-update', {
+        roomCode,
+        engagementLevel: result.label,
+      });
+    }
+
+    // Skip DB write when fully engaged — saves ~60-70% of storage.
+    // The socket emit above ensures the instructor still sees very_high in real time.
+    // Analytics queries handle gaps with Last Observation Carried Forward (LOCF).
+    if (result.label === 'very_high') return;
+
+    // For all other labels POST to save-record
     try {
       await api.post(`/rooms/${roomCode}/save-record`, {
         engagementLevel: result.label,
@@ -172,29 +185,18 @@ const useEngagement = ({
         modelUsed:       'client_mediapipe',
         faceStats:       result.faceStats,
       });
-      // Reset failure counter on success
       saveFailCountRef.current = 0;
     } catch (err) {
       saveFailCountRef.current++;
       const count = saveFailCountRef.current;
       console.warn(`[Engagement] save-record failed (attempt ${count}):`, err);
-
       if (count >= MAX_SAVE_FAILURES) {
-        // Surface to the user — Classroom.tsx watches inferenceError
         const detail = err instanceof Error ? err.message : 'Network error';
         setInferenceError(
           `Engagement data is not being saved (${detail}). ` +
           `Check your connection — the video call is unaffected.`
         );
       }
-    }
-
-    // 2. Ephemeral broadcast for instructor live view (no DB write on server)
-    if (socket.connected) {
-      socket.emit('engagement-update', {
-        roomCode,
-        engagementLevel: result.label,
-      });
     }
   }, [roomCode]);
 
@@ -227,8 +229,16 @@ const useEngagement = ({
             videoEl.videoWidth  || 640,
             videoEl.videoHeight || 480,
           );
+
+          // Only update React state when the label changes.
+          // Without this guard, setEngagementResult fires ~30/s (every rAF),
+          // triggering full re-renders of Classroom→VideoGrid→all tiles at 30fps.
+          // The badge is a 4-value enum, so state updates are now ~1-4/min.
+          const prevLabel = latestResultRef.current?.label;
           latestResultRef.current = prediction;
-          setEngagementResult(prediction);
+          if (prediction.label !== prevLabel) {
+            setEngagementResult(prediction);
+          }
         } catch (err) {
           // Transient errors (page not visible etc.) — log and continue
           console.warn('[Engagement] detectForVideo error:', err);

@@ -12,11 +12,12 @@ import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider }   from './context/AuthContext';
 import ProtectedRoute     from './components/layout/ProtectedRoute';
 
-import Login        from './pages/Login';
-import Register     from './pages/Register';
-import Dashboard    from './pages/Dashboard';
-import Sessions     from './pages/Sessions';
-import Classroom    from './pages/Classroom';
+import Login            from './pages/Login';
+import Register         from './pages/Register';
+import Dashboard        from './pages/Dashboard';
+import Sessions         from './pages/Sessions';
+import Classroom        from './pages/Classroom';
+import SessionAnalytics from './pages/SessionAnalytics';
 
 /** MUI dark theme tuned to ThirdEye's design tokens */
 const darkTheme = createTheme({
@@ -58,6 +59,9 @@ const App: React.FC = () => (
           } />
           <Route path="/classroom/:roomCode" element={
             <ProtectedRoute><Classroom /></ProtectedRoute>
+          } />
+          <Route path="/sessions/:sessionId/analytics" element={
+            <ProtectedRoute><SessionAnalytics /></ProtectedRoute>
           } />
 
           {/* Default redirect */}

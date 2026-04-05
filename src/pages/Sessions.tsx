@@ -15,6 +15,7 @@ import AddIcon         from '@mui/icons-material/Add';
 import VideoCallIcon   from '@mui/icons-material/VideoCall';
 import HowToRegIcon    from '@mui/icons-material/HowToReg';
 import PlayArrowIcon   from '@mui/icons-material/PlayArrow';
+import BarChartIcon    from '@mui/icons-material/BarChart';
 
 import api      from '../api/api';
 import useAuth  from '../hooks/useAuth';
@@ -161,7 +162,24 @@ const Sessions: React.FC = () => {
                 <div
                   key={session._id}
                   className="glass rounded-2xl p-5 flex items-center justify-between fade-in"
-                  style={{ border: session.status === 'active' ? '1px solid var(--accent)' : '1px solid var(--border)' }}
+                  onClick={session.status === 'completed'
+                    ? () => navigate(`/sessions/${session._id}/analytics`)
+                    : undefined}
+                  style={{
+                    border:  session.status === 'active'
+                      ? '1px solid var(--accent)'
+                      : '1px solid var(--border)',
+                    cursor:  session.status === 'completed' ? 'pointer' : 'default',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (session.status === 'completed')
+                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (session.status === 'completed')
+                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
+                  }}
                 >
                   <div className="flex-1 min-w-0 mr-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -181,6 +199,25 @@ const Sessions: React.FC = () => {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* Completed: analytics button */}
+                    {session.status === 'completed' && (
+                      <Tooltip title="View Engagement Analytics">
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/sessions/${session._id}/analytics`);
+                          }}
+                          sx={{
+                            background: 'var(--bg-elevated)',
+                            color:      'var(--accent)',
+                            border:     '1px solid var(--border)',
+                            '&:hover':  { background: 'var(--accent-glow)' },
+                          }}
+                        >
+                          <BarChartIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     {isInstructor && session.status === 'scheduled' && (
                       <Tooltip title="Start session">
                         <IconButton onClick={() => handleStart(session._id)}
