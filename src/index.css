@@ -1,0 +1,117 @@
+/**
+ * @file index.css
+ * @description Global styles for ThirdEye client.
+ *              - Tailwind v4 import (handles utilities & preflight)
+ *              - CSS custom property design tokens (ThirdEye brand)
+ *              - Base element overrides
+ *              - Reusable utility CSS classes for non-Tailwind contexts
+ */
+
+@import "tailwindcss";
+
+/* ── Design Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-primary:   #090b12;
+  --bg-surface:   #11141f;
+  --bg-elevated:  #191d2e;
+  --bg-tile:      #1e2235;
+  --bg-overlay:   rgba(9, 11, 18, 0.85);
+
+  /* Brand / Accent */
+  --accent:        #7c6fff;
+  --accent-light:  #a78bfa;
+  --accent-dark:   #5b4fe0;
+  --accent-glow:   rgba(124, 111, 255, 0.28);
+
+  /* Semantic */
+  --success:  #34d399;
+  --warning:  #fbbf24;
+  --danger:   #f87171;
+  --info:     #60a5fa;
+
+  /* Text */
+  --text-primary:   #f0f2ff;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
+
+  /* Borders */
+  --border:        rgba(255, 255, 255, 0.07);
+  --border-accent: rgba(124, 111, 255, 0.45);
+
+  /* Shape */
+  --radius-sm:   6px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md:  0 4px 20px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 0 3px var(--accent-glow);
+}
+
+/* ── Base Reset & Typography ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.6;
+  min-height: 100dvh;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--accent-dark); border-radius: 4px; }
+
+/* ── Custom Animations ─────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0px var(--accent-glow); }
+  50%       { box-shadow: 0 0 0 6px var(--accent-glow); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes toastIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Utility Classes ───────────────────────────────────────────────────────── */
+.fade-in        { animation: fadeIn 0.25s ease forwards; }
+.slide-in-right { animation: slideInRight 0.25s ease forwards; }
+.speaking-glow  { animation: pulse-glow 1.5s ease-in-out infinite; }
+
+/* Glass card */
+.glass {
+  background:    rgba(25, 29, 46, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+/* Engagement level colours used across Phase 2 badges */
+.engagement-very_low { color: var(--danger);  }
+.engagement-low      { color: var(--warning); }
+.engagement-high     { color: var(--success); }
+.engagement-very_high{ color: #a3f0ce;        }

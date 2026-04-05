@@ -1,0 +1,132 @@
+/**
+ * @file useMedia.ts
+ * @description Custom React hook that manages the local camera and microphone stream.
+ *              Handles: getUserMedia, screen share, audio mute/unmute, video toggle.
+ *              The stream is used both by the video grid (local tile) and by
+ *              useWebRTC (for adding tracks to peer connections).
+ */
+
+import { useState, useRef, useCallback, useEffect } from 'react';
+
+interface UseMediaReturn {
+  localStream:       MediaStream | null;
+  screenStream:      MediaStream | null;
+  isMuted:           boolean;
+  isCamOff:          boolean;
+  isSharingScreen:   boolean;
+  startMedia:        () => Promise<void>;
+  stopMedia:         () => void;
+  toggleAudio:       () => void;
+  toggleVideo:       () => void;
+  startScreenShare:  () => Promise<void>;
+  stopScreenShare:   () => void;
+}
+
+/**
+ * @description Provides local media stream management for the classroom.
+ *              Call startMedia() when the user joins a room.
+ *              Pass localStream to peer connections via useWebRTC.
+ * @returns {UseMediaReturn} Local stream state and control functions
+ */
+const useMedia = (): UseMediaReturn => {
+  const [localStream,     setLocalStream]     = useState<MediaStream | null>(null);
+  const [screenStream,    setScreenStream]    = useState<MediaStream | null>(null);
+  const [isMuted,         setIsMuted]         = useState(false);
+  const [isCamOff,        setIsCamOff]        = useState(false);
+  const [isSharingScreen, setIsSharingScreen] = useState(false);
+
+  const streamRef = useRef<MediaStream | null>(null);
+
+  /**
+   * @description Requests camera and microphone permissions and starts the local stream.
+   * @throws {Error} If permissions are denied
+   */
+  const startMedia = useCallback(async (): Promise<void> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: 'user' },
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      streamRef.current = stream;
+      setLocalStream(stream);
+    } catch (err) {
+      console.error('[Media] Could not get user media:', err);
+      // Start with a blank stream so the user can still join without camera
+      const blank = new MediaStream();
+      streamRef.current = blank;
+      setLocalStream(blank);
+      setIsCamOff(true);
+      setIsMuted(true);
+    }
+  }, []);
+
+  /**
+   * @description Stops all tracks in the local stream and cleans up.
+   */
+  const stopMedia = useCallback((): void => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setLocalStream(null);
+  }, []);
+
+  /**
+   * @description Toggles the audio track on/off. Updates isMuted state.
+   */
+  const toggleAudio = useCallback((): void => {
+    const track = streamRef.current?.getAudioTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    setIsMuted(!track.enabled);
+  }, []);
+
+  /**
+   * @description Toggles the video track on/off. Updates isCamOff state.
+   */
+  const toggleVideo = useCallback((): void => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    track.enabled = !track.enabled;
+    setIsCamOff(!track.enabled);
+  }, []);
+
+  /**
+   * @description Starts a screen share by requesting display media.
+   *              On stream end (user stops sharing), resets state automatically.
+   * @throws {Error} If screen share permission is denied
+   */
+  const startScreenShare = useCallback(async (): Promise<void> => {
+    try {
+      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      screen.getVideoTracks()[0].addEventListener('ended', () => {
+        setScreenStream(null);
+        setIsSharingScreen(false);
+      });
+      setScreenStream(screen);
+      setIsSharingScreen(true);
+    } catch (err) {
+      console.error('[Media] Screen share denied:', err);
+    }
+  }, []);
+
+  /**
+   * @description Stops the active screen share stream.
+   */
+  const stopScreenShare = useCallback((): void => {
+    screenStream?.getTracks().forEach((t) => t.stop());
+    setScreenStream(null);
+    setIsSharingScreen(false);
+  }, [screenStream]);
+
+  /** Clean up on unmount */
+  useEffect(() => () => stopMedia(), [stopMedia]);
+
+  return {
+    localStream, screenStream,
+    isMuted, isCamOff, isSharingScreen,
+    startMedia, stopMedia,
+    toggleAudio, toggleVideo,
+    startScreenShare, stopScreenShare,
+  };
+};
+
+export default useMedia;
