@@ -4,6 +4,9 @@
  *              - React plugin for JSX transform
  *              - Tailwind CSS v4 via @tailwindcss/vite plugin
  *              - Proxy /api and /socket.io to the Express backend (dev only)
+ *              - @mediapipe/tasks-vision excluded from esbuild pre-bundling
+ *                because WASM-containing packages break in the optimiser;
+ *                it is loaded via dynamic import at runtime instead.
  */
 
 import { defineConfig } from 'vite';
@@ -15,6 +18,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  optimizeDeps: {
+    exclude: ['@mediapipe/tasks-vision'],
+  },
   server: {
     port: 5173,
     proxy: {
@@ -29,3 +35,4 @@ export default defineConfig({
     },
   },
 });
+

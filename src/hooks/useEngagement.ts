@@ -26,22 +26,21 @@ import type { IEngagementResult } from '../types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+/**
+ * WASM base URL used by FilesetResolver.forVisionTasks().
+ * This is fetched via fetch() internally — NOT executed as a <script> —
+ * so browser MIME-type script blocking does not apply.
+ * We use unpkg which reliably serves npm package files with correct Content-Type.
+ */
+const MEDIAPIPE_WASM_URL =
+  'https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm';
+
 const FACE_MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
 /** Interval between REST saves and socket emits (milliseconds) */
 const SAVE_INTERVAL_MS = 3000;
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-// MediaPipe is loaded globally via CDN — access via window
-/* eslint-disable @typescript-eslint/no-explicit-any */
-type MediaPipeVision = {
-  FaceLandmarker:  any;
-  FilesetResolver: any;
-};
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface UseEngagementParams {
   /** Ref to the local <video> element — used by FaceLandmarker.detectForVideo() */
@@ -107,37 +106,38 @@ const useEngagement = ({
   const MAX_SAVE_FAILURES = 3;
 
   /**
-   * @description Loads MediaPipe FaceLandmarker from the CDN WASM bundle.
-   *              The bundle was injected as a global in index.html.
-   * @throws Sets inferenceError state if loading fails
+   * @description Dynamically imports @mediapipe/tasks-vision (npm package),
+   *              resolves the WASM runtime via FilesetResolver, then creates
+   *              a FaceLandmarker configured for VIDEO mode.
+   *
+   *              Why dynamic import?
+   *              - Vite code-splits it into a separate chunk (loaded on demand)
+   *              - Avoids the MIME-type issue caused by CDN <script> injection
+   *              - WASM binary is fetched from unpkg via fetch() inside
+   *                FilesetResolver — not executed as a script — so strict
+   *                MIME checking does not block it.
+   *
+   * @throws Sets inferenceError state if loading or initialisation fails
    * @returns {Promise<void>}
    */
   const loadMediaPipe = useCallback(async (): Promise<void> => {
     try {
-      // Access the global injected by the CDN script tag in index.html
-      const mpVision = (window as unknown as { MediaPipeTasksVision?: MediaPipeVision })
-        .MediaPipeTasksVision;
-
-      // Older bundle versions expose FaceLandmarker at the top level
-      const { FaceLandmarker, FilesetResolver } =
-        mpVision ?? (window as unknown as MediaPipeVision);
-
-      if (!FaceLandmarker || !FilesetResolver) {
-        throw new Error('MediaPipe globals not found — CDN script may not have loaded.');
-      }
+      // Dynamic import — Vite splits this into its own chunk.
+      // The package is excluded from esbuild pre-bundling in vite.config.ts.
+      const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
 
       const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
 
       landmarkerRef.current = await FaceLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: FACE_MODEL_URL,
-          delegate:       'GPU', // falls back to CPU automatically on unsupported devices
+          delegate:       'GPU', // auto-falls back to CPU on unsupported devices
         },
-        runningMode:                    'VIDEO',
-        numFaces:                       1,
-        minFaceDetectionConfidence:     0.5,
-        minTrackingConfidence:          0.5,
-        outputFaceBlendshapes:          false,
+        runningMode:                        'VIDEO',
+        numFaces:                           1,
+        minFaceDetectionConfidence:         0.5,
+        minTrackingConfidence:              0.5,
+        outputFaceBlendshapes:              false,
         outputFacialTransformationMatrixes: false,
       });
 
@@ -146,8 +146,10 @@ const useEngagement = ({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('[Engagement] MediaPipe failed to load:', msg);
-      setInferenceError(msg);
-      // Classroom continues to work — monitoring silently disabled
+      setInferenceError(
+        'Engagement monitoring unavailable — MediaPipe could not be loaded. ' +
+        'The video call is unaffected.'
+      );
     }
   }, []);
 
