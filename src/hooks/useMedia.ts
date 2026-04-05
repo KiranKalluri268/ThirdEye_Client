@@ -43,10 +43,17 @@ const useMedia = (): UseMediaReturn => {
    */
   const startMedia = useCallback(async (): Promise<void> => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720, facingMode: 'user' },
-        audio: { echoCancellation: true, noiseSuppression: true },
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } }, // Removed facingMode
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+      } catch (firstErr) {
+        console.warn('[Media] Preferred constraints failed, falling back to basic:', firstErr);
+        // Fallback to completely basic request if specific constraints fail
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      }
       streamRef.current = stream;
       setLocalStream(stream);
     } catch (err) {
