@@ -65,30 +65,43 @@ interface Landmark {
 const norm2d = (a: [number, number], b: [number, number]): number =>
   Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2);
 
-/**
- * @description Extracts the [x, y] coordinates of a landmark by index.
- * @param landmarks - Full 478-landmark array from MediaPipe
- * @param idx       - Landmark index
- * @returns {[number, number]} Normalised [x, y] pair (0–1 range)
- */
-const pt = (landmarks: Landmark[], idx: number): [number, number] =>
-  [landmarks[idx].x, landmarks[idx].y];
+
 
 // ── Eye Aspect Ratio ──────────────────────────────────────────────────────────
 
 /**
  * @description Computes the Eye Aspect Ratio (EAR) for one eye.
  *              EAR < EAR_CLOSED → eyes shut; EAR > EAR_OPEN → eyes open.
- * @param landmarks - Full landmark array
- * @param indices   - 6 landmark indices [p1..p6] for the eye
- * @returns {number} EAR value (larger = more open)
+ *
+ *              IMPORTANT: landmarks must be converted to PIXEL coordinates
+ *              before computing distances. MediaPipe returns normalized [0,1]
+ *              values where x uses image width and y uses image height as scale.
+ *              For a 16:9 image, 1 unit of x ≠ 1 unit of y, so computing
+ *              Euclidean distance in normalized space gives wrong EAR values
+ *              (they'd be ~1.78× too high for 1280×720). This matches exactly
+ *              how inference.py does it: pts = [lm[i].x * iw, lm[i].y * ih].
+ *
+ * @param landmarks  - Full landmark array (normalized 0–1)
+ * @param indices    - 6 landmark indices [p1..p6] for the eye
+ * @param videoWidth - Actual pixel width of the video element
+ * @param videoHeight - Actual pixel height of the video element
+ * @returns {number} EAR value (larger = more open; calibrated thresholds are in pixel space)
  */
-const earValue = (landmarks: Landmark[], indices: readonly number[]): number => {
+const earValue = (
+  landmarks:   Landmark[],
+  indices:     readonly number[],
+  videoWidth:  number,
+  videoHeight: number,
+): number => {
   try {
-    const pts = indices.map((i) => pt(landmarks, i));
-    const v1  = norm2d(pts[1], pts[5]);
-    const v2  = norm2d(pts[2], pts[4]);
-    const h   = norm2d(pts[0], pts[3]);
+    // Convert to pixel coordinates — matches inference.py exactly
+    const pts = indices.map((i) => [
+      landmarks[i].x * videoWidth,
+      landmarks[i].y * videoHeight,
+    ] as [number, number]);
+    const v1 = norm2d(pts[1], pts[5]);
+    const v2 = norm2d(pts[2], pts[4]);
+    const h  = norm2d(pts[0], pts[3]);
     return (v1 + v2) / (2.0 * h + 1e-6);
   } catch {
     return 0.20; // neutral fallback
@@ -106,16 +119,23 @@ interface RawEngagement {
 }
 
 /**
- * @description Computes the raw (unsmoothed) engagement score from facial landmarks.
+ * @description Core engagement scorer. Computes raw (unsmoothed) engagement
+ *              from pixel-space facial geometry.
  *              Weights: eyes 40%, gaze 22%, head yaw 15%, face centre 13%,
  *              face size 7%, base 3%. Matches inference.py compute_engagement().
- * @param landmarks - 478 MediaPipe FaceLandmarker landmarks
- * @returns {RawEngagement} Raw score, max score ceiling, and face stats
+ * @param landmarks   - 478 MediaPipe FaceLandmarker landmarks (normalized 0–1)
+ * @param videoWidth  - Pixel width of the video element (for EAR)
+ * @param videoHeight - Pixel height of the video element (for EAR)
+ * @returns {RawEngagement} Raw score, ceiling, and face stats
  */
-const computeEngagement = (landmarks: Landmark[]): RawEngagement => {
-  // ── EAR — primary gate ───────────────────────────────────────────────────
-  const earL   = earValue(landmarks, LEFT_EYE);
-  const earR   = earValue(landmarks, RIGHT_EYE);
+const computeEngagement = (
+  landmarks:   Landmark[],
+  videoWidth:  number,
+  videoHeight: number,
+): RawEngagement => {
+  // ── EAR — primary gate (computed in pixel space) ─────────────────────────
+  const earL   = earValue(landmarks, LEFT_EYE,  videoWidth, videoHeight);
+  const earR   = earValue(landmarks, RIGHT_EYE, videoWidth, videoHeight);
   const earAvg = (earL + earR) / 2.0;
 
   let eyeScore: number;
@@ -230,13 +250,22 @@ const smoothAndLabel = (rawScore: number): { label: EngagementLabel; confidence:
 
 /**
  * @description Main inference function. Call with the first element of
- *              MediaPipe FaceLandmarker's `faceLandmarks` array.
- *              If landmarks is null (no face detected), returns very_low.
- * @param landmarks - Array of 478 {x, y, z} landmark objects, or null
+ *              MediaPipe FaceLandmarker's `faceLandmarks` array and the actual
+ *              pixel dimensions of the video element.
+ *
+ *              Video dimensions are required to compute EAR in pixel space,
+ *              matching the Python inference.py implementation exactly.
+ *              If no face is detected (landmarks is null), returns very_low.
+ *
+ * @param landmarks   - Array of 478 {x, y, z} landmark objects, or null
+ * @param videoWidth  - Pixel width  of the video element (from videoEl.videoWidth)
+ * @param videoHeight - Pixel height of the video element (from videoEl.videoHeight)
  * @returns {IEngagementResult} Engagement label, confidence, and face stats
  */
 export const predictFromLandmarks = (
-  landmarks: Landmark[] | null,
+  landmarks:   Landmark[] | null,
+  videoWidth:  number = 640,
+  videoHeight: number = 480,
 ): IEngagementResult => {
   // No face detected
   if (!landmarks || landmarks.length === 0) {
@@ -250,7 +279,7 @@ export const predictFromLandmarks = (
     };
   }
 
-  const eng = computeEngagement(landmarks);
+  const eng = computeEngagement(landmarks, videoWidth, videoHeight);
   const out = smoothAndLabel(eng.score);
 
   return {

@@ -219,7 +219,14 @@ const useEngagement = ({
               ? result.faceLandmarks[0]
               : null;
 
-          const prediction = predictFromLandmarks(landmarks);
+          // Pass actual pixel dimensions — EAR must be computed in pixel space
+          // (matching inference.py which multiplies by image width/height).
+          // videoWidth/videoHeight are always available when readyState >= 2.
+          const prediction = predictFromLandmarks(
+            landmarks,
+            videoEl.videoWidth  || 640,
+            videoEl.videoHeight || 480,
+          );
           latestResultRef.current = prediction;
           setEngagementResult(prediction);
         } catch (err) {
