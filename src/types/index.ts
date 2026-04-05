@@ -61,6 +61,41 @@ export interface IChatMessage {
 
 export type EngagementLevelType = 'very_low' | 'low' | 'high' | 'very_high';
 
+/** Shorthand alias used throughout Phase 2 UI components */
+export type EngagementLabel = EngagementLevelType;
+
+/** Shape returned by the client-side MediaPipe inference engine */
+export interface IEngagementResult {
+  label:       EngagementLabel;
+  confidence:  number;   // 0.0 – 1.0
+  score:       number;   // raw weighted score 0.0 – 1.0
+  faceStats: {
+    faceDetected:  boolean;
+    eyesDetected:  number; // 0, 1, or 2
+    faceCentered:  boolean;
+    earAvg:        number;
+  };
+}
+
+/** Socket.IO event payload — student broadcasts their label to the room every 3s */
+export interface IPeerEngagementEvent {
+  socketId:        string;
+  engagementLevel: EngagementLabel;
+}
+
+/** One time-stamped engagement data point for the instructor sparkline chart */
+export interface IEngagementDataPoint {
+  timestamp:    number;          // Unix ms — Date.now()
+  label:        EngagementLabel;
+  score:        number;          // 0.0 – 1.0 numeric aggregate of all peers
+  counts: {
+    very_high: number;
+    high:      number;
+    low:       number;
+    very_low:  number;
+  };
+}
+
 // ── WebRTC / Peers ────────────────────────────────────────────────────────────
 
 /** Represents a remote participant in the video call */

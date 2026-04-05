@@ -25,10 +25,12 @@ const ICE_SERVERS: RTCConfiguration = {
 };
 
 interface UseWebRTCParams {
-  roomCode:    string;
-  userId:      string;
-  displayName: string;
-  localStream: MediaStream | null;
+  roomCode:     string;
+  userId:       string;
+  displayName:  string;
+  localStream:  MediaStream | null;
+  /** When set, replaces the video track on all peer connections with the screen track */
+  screenStream: MediaStream | null;
 }
 
 interface UseWebRTCReturn {
@@ -44,7 +46,7 @@ interface UseWebRTCReturn {
  * @param localStream - Local camera/mic stream to send to peers
  * @returns {Map<string, IPeer>} Live map of connected peers
  */
-const useWebRTC = ({ roomCode, userId, displayName, localStream }: UseWebRTCParams): UseWebRTCReturn => {
+const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }: UseWebRTCParams): UseWebRTCReturn => {
   const [peers, setPeers] = useState<Map<string, IPeer>>(new Map());
   const pcsRef            = useRef<Map<string, RTCPeerConnection>>(new Map());
 
@@ -240,6 +242,27 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream }: UseWebRTCPara
       pcsRef.current.clear();
     };
   }, [localStream, roomCode, userId, displayName, createPC, removePC]);
+
+  /**
+   * @description Replaces the video track on all active peer connections when
+   *              screen share starts or stops. Uses RTCRtpSender.replaceTrack()
+   *              so no new SDP negotiation is required.
+   * @param screenStream - Active screen share stream, or null when stopped
+   * @param localStream  - Original camera/mic stream to restore on stop
+   */
+  useEffect(() => {
+    pcsRef.current.forEach((pc) => {
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+      if (!sender) return;
+      if (screenStream) {
+        const screenTrack = screenStream.getVideoTracks()[0];
+        if (screenTrack) sender.replaceTrack(screenTrack);
+      } else if (localStream) {
+        const camTrack = localStream.getVideoTracks()[0];
+        if (camTrack) sender.replaceTrack(camTrack);
+      }
+    });
+  }, [screenStream, localStream]);
 
   return { peers };
 };

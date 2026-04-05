@@ -3,20 +3,44 @@
  * @description Renders a single participant's video tile in the classroom grid.
  *              Shows video when camera is on, or an avatar with initials when off.
  *              Displays a speaking glow border, name tag, and mute/cam status icons.
+ *
+ *              Phase 2 additions:
+ *              - engagementLabel: optional colored badge in top-right corner
+ *              - externalVideoRef: forwards the <video> element ref to useEngagement
  */
 
 import React, { useRef, useEffect } from 'react';
 import MicOffIcon       from '@mui/icons-material/MicOff';
 import VideocamOffIcon  from '@mui/icons-material/VideocamOff';
+import type { EngagementLabel } from '../../types';
+
+// ── Engagement badge colours ───────────────────────────────────────────────────
+const ENGAGEMENT_COLORS: Record<EngagementLabel, string> = {
+  very_high: '#2ed573',
+  high:      '#7bed9f',
+  low:       '#ffa502',
+  very_low:  '#ff4757',
+};
+
+const ENGAGEMENT_LABELS: Record<EngagementLabel, string> = {
+  very_high: 'Very High',
+  high:      'High',
+  low:       'Low',
+  very_low:  'Very Low',
+};
 
 interface VideoTileProps {
-  stream:      MediaStream | null;
-  displayName: string;
-  avatarColor: string;
-  isMuted:     boolean;
-  isCamOff:    boolean;
-  isSpeaking:  boolean;
-  isLocal?:    boolean;
+  stream:             MediaStream | null;
+  displayName:        string;
+  avatarColor:        string;
+  isMuted:            boolean;
+  isCamOff:           boolean;
+  isSpeaking:         boolean;
+  isLocal?:           boolean;
+  /** Phase 2: engagement label for the colored badge overlay in the tile top-right */
+  engagementLabel?:   EngagementLabel | null;
+  /** Phase 2: forwards the <video> ref to useEngagement for MediaPipe inference */
+  externalVideoRef?:  React.RefObject<HTMLVideoElement | null>;
 }
 
 /**
@@ -30,28 +54,37 @@ const getInitials = (name: string): string =>
 /**
  * @description A video tile for one participant. Attaches the MediaStream to
  *              a <video> element via ref. Mirrors local video horizontally.
- * @param stream      - The participant's MediaStream (null if cam off)
- * @param displayName - Name shown in the bottom-left label
- * @param avatarColor - Background color for initials avatar
- * @param isMuted     - Whether the participant's mic is muted
- * @param isCamOff    - Whether the participant's camera is off
- * @param isSpeaking  - Whether the participant is currently speaking (glow border)
- * @param isLocal     - True for the local user's tile (mirrors video)
+ *              When engagementLabel is provided, shows a colored badge overlay.
+ * @param stream            - The participant's MediaStream (null if cam off)
+ * @param displayName       - Name shown in the bottom-left label
+ * @param avatarColor       - Background color for initials avatar
+ * @param isMuted           - Whether the participant's mic is muted
+ * @param isCamOff          - Whether the participant's camera is off
+ * @param isSpeaking        - Whether the participant is currently speaking
+ * @param isLocal           - True for the local user's tile (mirrors video)
+ * @param engagementLabel   - Optional Phase 2 engagement level for badge display
+ * @param externalVideoRef  - Optional ref forwarded to the <video> element
  */
 const VideoTile: React.FC<VideoTileProps> = ({
-  stream, displayName, avatarColor, isMuted, isCamOff, isSpeaking, isLocal = false,
+  stream, displayName, avatarColor, isMuted, isCamOff, isSpeaking,
+  isLocal = false, engagementLabel, externalVideoRef,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   /**
-   * @description Attaches or detaches the MediaStream to the video element
-   *              whenever the stream prop changes.
+   * @description Attaches the MediaStream to the video element and optionally
+   *              forwards the ref to externalVideoRef for MediaPipe inference.
    */
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
-  }, [stream]);
+    // Forward the video element to externalVideoRef if provided (local tile only)
+    if (externalVideoRef && videoRef.current) {
+      (externalVideoRef as React.MutableRefObject<HTMLVideoElement | null>).current =
+        videoRef.current;
+    }
+  }, [stream, externalVideoRef]);
 
   return (
     <div
@@ -64,6 +97,45 @@ const VideoTile: React.FC<VideoTileProps> = ({
         transition:  'border-color 0.2s, box-shadow 0.2s',
       }}
     >
+      {/* Phase 2: Engagement badge — top-right corner */}
+      {engagementLabel && (
+        <div
+          style={{
+            position:       'absolute',
+            top:            8,
+            right:          8,
+            zIndex:         10,
+            display:        'flex',
+            alignItems:     'center',
+            gap:            4,
+            background:     'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+            borderRadius:   20,
+            padding:        '3px 8px',
+          }}
+        >
+          <span
+            style={{
+              width:        7,
+              height:       7,
+              borderRadius: '50%',
+              background:   ENGAGEMENT_COLORS[engagementLabel],
+              display:      'inline-block',
+              flexShrink:   0,
+            }}
+          />
+          <span
+            style={{
+              fontSize:   10,
+              fontWeight: 600,
+              color:      ENGAGEMENT_COLORS[engagementLabel],
+              letterSpacing: '0.02em',
+            }}
+          >
+            {ENGAGEMENT_LABELS[engagementLabel]}
+          </span>
+        </div>
+      )}
       {/* Video element — hidden when camera is off */}
       {!isCamOff && stream && (
         <video
