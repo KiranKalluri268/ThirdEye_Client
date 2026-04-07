@@ -114,6 +114,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
           isMuted:     existing?.isMuted  || false,
           isCamOff:    existing?.isCamOff || false,
           isSpeaking:  false,
+          isHandRaised: existing?.isHandRaised || false,
         });
         return updated;
       });
@@ -151,7 +152,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
      * @description Received on join: list of peers already in the room.
      *              We create a connection and send an offer to each.
      */
-    const handlePeers = async (data: { peers: Array<{ socketId: string; userId: string; displayName: string }> }) => {
+    const handlePeers = async (data: { peers: Array<{ socketId: string; userId: string; displayName: string; isHandRaised?: boolean }> }) => {
       for (const peer of data.peers) {
         const pc = createPC(peer.socketId, peer.displayName);
         // If we are already sharing screen when we join, add it immediately
@@ -163,7 +164,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
         setPeers((prev) => new Map(prev).set(peer.socketId, {
           socketId: peer.socketId, userId: peer.userId,
           displayName: peer.displayName, stream: null, screenStream: null,
-          isMuted: false, isCamOff: false, isSpeaking: false,
+          isMuted: false, isCamOff: false, isSpeaking: false, isHandRaised: peer.isHandRaised || false,
         }));
         // Note: onnegotiationneeded handles the offer creation now!
       }
@@ -173,11 +174,11 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
      * @description A new peer has joined the room. They will send us an offer.
      *              We just add them to state; the offer handler creates the PC.
      */
-    const handlePeerJoined = (peer: { socketId: string; userId: string; displayName: string }) => {
+    const handlePeerJoined = (peer: { socketId: string; userId: string; displayName: string; isHandRaised?: boolean }) => {
       setPeers((prev) => new Map(prev).set(peer.socketId, {
         socketId: peer.socketId, userId: peer.userId,
         displayName: peer.displayName, stream: null, screenStream: null,
-        isMuted: false, isCamOff: false, isSpeaking: false,
+        isMuted: false, isCamOff: false, isSpeaking: false, isHandRaised: peer.isHandRaised || false,
       }));
     };
 
@@ -247,6 +248,24 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
       });
     };
 
+    const handlePeerHandRaised = ({ socketId }: { socketId: string }) => {
+      setPeers((prev) => {
+        const updated = new Map(prev);
+        const peer = updated.get(socketId);
+        if (peer) updated.set(socketId, { ...peer, isHandRaised: true });
+        return updated;
+      });
+    };
+
+    const handlePeerHandLowered = ({ socketId }: { socketId: string }) => {
+      setPeers((prev) => {
+        const updated = new Map(prev);
+        const peer = updated.get(socketId);
+        if (peer) updated.set(socketId, { ...peer, isHandRaised: false });
+        return updated;
+      });
+    };
+
     /**
      * @description A peer has left. Close and remove their connection.
      */
@@ -280,6 +299,8 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
     socket.on('ice-candidate', handleIce);
     socket.on('peer-muted',    handlePeerMuted);
     socket.on('peer-unmuted',  handlePeerUnmuted);
+    socket.on('peer-hand-raised', handlePeerHandRaised);
+    socket.on('peer-hand-lowered', handlePeerHandLowered);
     socket.on('peer-left',     handlePeerLeft);
     socket.on('set-screen-stream', handleSetScreenStream);
 
@@ -295,6 +316,8 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
       socket.off('ice-candidate');
       socket.off('peer-muted');
       socket.off('peer-unmuted');
+      socket.off('peer-hand-raised');
+      socket.off('peer-hand-lowered');
       socket.off('peer-left');
       socket.off('set-screen-stream');
       socket.emit('leave', { roomCode });

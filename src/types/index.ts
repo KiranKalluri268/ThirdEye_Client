@@ -108,6 +108,7 @@ export interface IPeer {
   isMuted:      boolean;
   isCamOff:     boolean;
   isSpeaking:   boolean;
+  isHandRaised: boolean;
 }
 
 // ── API Response wrappers ─────────────────────────────────────────────────────

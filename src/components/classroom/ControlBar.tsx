@@ -17,6 +17,7 @@ import ChatIcon           from '@mui/icons-material/Chat';
 import PeopleIcon         from '@mui/icons-material/People';
 import CallEndIcon        from '@mui/icons-material/CallEnd';
 import CancelPresentationIcon from '@mui/icons-material/CancelPresentation';
+import PanToolIcon        from '@mui/icons-material/PanTool';
 
 interface ControlBarProps {
   isMuted:          boolean;
@@ -25,11 +26,13 @@ interface ControlBarProps {
   isChatOpen:       boolean;
   isPeopleOpen:     boolean;
   isInstructor:     boolean;
+  isHandRaised:     boolean;
   onToggleAudio:    () => void;
   onToggleVideo:    () => void;
   onToggleScreen:   () => void;
   onToggleChat:     () => void;
   onTogglePeople:   () => void;
+  onToggleHandRaise:() => void;
   onLeave:          () => void;
   onEndSession:     () => void;
 }
@@ -70,9 +73,9 @@ const ControlButton: React.FC<{
  */
 const ControlBar: React.FC<ControlBarProps> = ({
   isMuted, isCamOff, isSharingScreen,
-  isChatOpen, isPeopleOpen, isInstructor,
+  isChatOpen, isPeopleOpen, isInstructor, isHandRaised,
   onToggleAudio, onToggleVideo, onToggleScreen,
-  onToggleChat, onTogglePeople, onLeave, onEndSession,
+  onToggleChat, onTogglePeople, onToggleHandRaise, onLeave, onEndSession,
 }) => (
   <div
     className="flex items-center justify-center gap-3 px-6 py-3"
@@ -98,6 +101,10 @@ const ControlBar: React.FC<ControlBarProps> = ({
 
     <ControlButton tooltip="Chat" onClick={onToggleChat} active={isChatOpen}>
       <ChatIcon />
+    </ControlButton>
+
+    <ControlButton tooltip={isHandRaised ? 'Lower hand' : 'Raise hand'} onClick={onToggleHandRaise} active={isHandRaised}>
+      <PanToolIcon />
     </ControlButton>
 
     <ControlButton tooltip="Participants" onClick={onTogglePeople} active={isPeopleOpen}>

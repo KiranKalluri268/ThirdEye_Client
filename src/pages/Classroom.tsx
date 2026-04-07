@@ -46,6 +46,7 @@ const Classroom: React.FC = () => {
   const [loading,      setLoading]      = useState(true);
   const [isChatOpen,   setIsChatOpen]   = useState(false);
   const [isPeopleOpen, setIsPeopleOpen] = useState(false);
+  const [isHandRaised, setIsHandRaised] = useState(false);
   const [toast, setToast] = useState<{ open: boolean; msg: string; severity: 'info' | 'warning' }>(
     { open: false, msg: '', severity: 'info' }
   );
@@ -221,6 +222,17 @@ const Classroom: React.FC = () => {
     navigate('/dashboard');
   }, [roomCode, stopMedia, navigate]);
 
+  /**
+   * @description Toggles the local user's hand raise state and emits the corresponding socket event.
+   */
+  const handleToggleHandRaise = useCallback((): void => {
+    setIsHandRaised((prev) => {
+      const nextState = !prev;
+      socket.emit(nextState ? 'hand-raised' : 'hand-lowered', { roomCode });
+      return nextState;
+    });
+  }, [roomCode]);
+
   // ── Loading state ─────────────────────────────────────────────────────────
 
   if (loading || !user || !session) {
@@ -300,6 +312,7 @@ const Classroom: React.FC = () => {
             isCamOff={isCamOff}
             peers={peers}
             localEngagementLabel={!isInstructor ? (engagementResult?.label ?? null) : null}
+            localHandRaised={isHandRaised}
             peerEngagementMap={isInstructor ? peerEngagementMap : new Map()}
             localVideoRef={localVideoRef as React.RefObject<HTMLVideoElement | null>}
           />
@@ -340,12 +353,14 @@ const Classroom: React.FC = () => {
         isSharingScreen={isSharingScreen}
         isChatOpen={isChatOpen}
         isPeopleOpen={isPeopleOpen}
+        isHandRaised={isHandRaised}
         isInstructor={isInstructor}
         onToggleAudio={toggleAudio}
         onToggleVideo={toggleVideo}
         onToggleScreen={isSharingScreen ? stopScreenShare : startScreenShare}
         onToggleChat={() => setIsChatOpen((v) => !v)}
         onTogglePeople={() => setIsPeopleOpen((v) => !v)}
+        onToggleHandRaise={handleToggleHandRaise}
         onLeave={handleLeave}
         onEndSession={handleEndSession}
       />

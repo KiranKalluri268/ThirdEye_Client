@@ -25,6 +25,8 @@ interface VideoGridProps {
   localEngagementLabel?: EngagementLabel | null;
   /** Phase 2: map of peer socketId → engagement label (shown on instructor view) */
   peerEngagementMap?:    Map<string, EngagementLabel>;
+  /** Phase 2: local hand raised state */
+  localHandRaised:       boolean;
   /** Phase 2: forwarded to the local VideoTile so MediaPipe can access the <video> element */
   localVideoRef?:        React.RefObject<HTMLVideoElement | null>;
 }
@@ -59,7 +61,7 @@ const getColumnCount = (count: number): number => {
  */
 const VideoGrid: React.FC<VideoGridProps> = ({
   localStream, screenStream, localUser, isMuted, isCamOff, peers,
-  localEngagementLabel, peerEngagementMap, localVideoRef,
+  localEngagementLabel, peerEngagementMap, localHandRaised, localVideoRef,
 }) => {
   const [pinnedId, setPinnedId] = React.useState<string | null>(null);
 
@@ -75,6 +77,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({
       avatarColor: localUser.avatarColor,
       isMuted, isCamOff, isSpeaking: false, isLocal: true,
       engagementLabel: localEngagementLabel ?? null,
+      isHandRaised: localHandRaised,
       externalVideoRef: localVideoRef
     });
 
@@ -98,6 +101,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({
         avatarColor: '#6c63ff',
         isMuted: peer.isMuted, isCamOff: peer.isCamOff, isSpeaking: peer.isSpeaking, isLocal: false,
         engagementLabel: peerEngagementMap?.get(peer.socketId) ?? null,
+        isHandRaised: peer.isHandRaised,
       });
 
       if (peer.screenStream) {
@@ -112,7 +116,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({
     });
 
     return arr;
-  }, [localStream, screenStream, localUser, isMuted, isCamOff, localEngagementLabel, localVideoRef, peers, peerEngagementMap]);
+  }, [localStream, screenStream, localUser, isMuted, isCamOff, localEngagementLabel, localHandRaised, localVideoRef, peers, peerEngagementMap]);
 
   // Auto-pin newest screen if nothing is pinned
   React.useEffect(() => {

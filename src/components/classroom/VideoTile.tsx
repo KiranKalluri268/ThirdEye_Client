@@ -14,6 +14,7 @@ import MicOffIcon       from '@mui/icons-material/MicOff';
 import VideocamOffIcon  from '@mui/icons-material/VideocamOff';
 import PushPinIcon      from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
+import PanToolIcon      from '@mui/icons-material/PanTool';
 import type { EngagementLabel } from '../../types';
 
 // ── Engagement badge colours ───────────────────────────────────────────────────
@@ -44,6 +45,7 @@ interface VideoTileProps {
   externalVideoRef?:  React.RefObject<HTMLVideoElement | null>;
   isPinned?:          boolean;
   isScreen?:          boolean;
+  isHandRaised?:      boolean;
   onPinToggle?:       () => void;
 }
 
@@ -72,7 +74,7 @@ const getInitials = (name: string): string =>
 const VideoTile: React.FC<VideoTileProps> = ({
   stream, displayName, avatarColor, isMuted, isCamOff, isSpeaking,
   isLocal = false, engagementLabel, externalVideoRef,
-  isPinned = false, isScreen = false, onPinToggle
+  isPinned = false, isScreen = false, isHandRaised = false, onPinToggle
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -213,7 +215,8 @@ const VideoTile: React.FC<VideoTileProps> = ({
         </span>
 
         {/* Status icons */}
-        <div className="flex gap-1">
+        <div className="flex gap-1" style={{ alignItems: 'center' }}>
+          {isHandRaised && <PanToolIcon sx={{ fontSize: 14, color: 'var(--accent)', marginRight: '4px' }} />}
           {isMuted   && <MicOffIcon    sx={{ fontSize: 14, color: 'var(--danger)' }} />}
           {isCamOff  && <VideocamOffIcon sx={{ fontSize: 14, color: 'var(--danger)' }} />}
         </div>
