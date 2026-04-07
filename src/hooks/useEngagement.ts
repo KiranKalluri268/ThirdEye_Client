@@ -181,7 +181,7 @@ const useEngagement = ({
     try {
       await api.post(`/rooms/${roomCode}/save-record`, {
         engagementLevel: result.label,
-        confidenceScore: result.confidence,
+        confidenceScore: result.score,
         modelUsed:       'client_mediapipe',
         faceStats:       result.faceStats,
       });
