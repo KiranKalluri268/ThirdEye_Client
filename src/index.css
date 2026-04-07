@@ -1,57 +1,67 @@
 /**
  * @file index.css
  * @description Global styles for ThirdEye client.
+ *              - Google Fonts: Tektur (primary typeface)
  *              - Tailwind v4 import (handles utilities & preflight)
  *              - CSS custom property design tokens (ThirdEye brand)
  *              - Base element overrides
- *              - Reusable utility CSS classes for non-Tailwind contexts
+ *              - Reusable utility CSS classes
  */
 
+@import url('https://fonts.googleapis.com/css2?family=Tektur:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
-  /* Backgrounds */
+  /* ── Primaries ── */
+  --primary:   #0a0a0a;          /* Black  – primary brand   */
+  --secondary: #ffffff;          /* White  – secondary brand */
+
+  /* ── Accent (Blue) ── */
+  --accent:        #2563eb;              /* Blue-600 – main interactive */
+  --accent-light:  #60a5fa;             /* Blue-400 – soft highlights  */
+  --accent-dark:   #1d4ed8;             /* Blue-700 – hover / pressed  */
+  --accent-glow:   rgba(37,99,235,0.18);/* Subtle blue glow            */
+
+  /* ── Backgrounds ── */
   --bg-primary:   #090b12;
   --bg-surface:   #11141f;
   --bg-elevated:  #191d2e;
   --bg-tile:      #1e2235;
-  --bg-overlay:   rgba(9, 11, 18, 0.85);
+  --bg-overlay:   rgba(9, 11, 18, 0.88);
 
-  /* Brand / Accent */
-  --accent:        #7c6fff;
-  --accent-light:  #a78bfa;
-  --accent-dark:   #5b4fe0;
-  --accent-glow:   rgba(124, 111, 255, 0.28);
+  /* ── Semantic colours ── */
+  --success: #22c55e;   /* Green  – normal / good  */
+  --warning: #f97316;   /* Orange – warning        */
+  --danger:  #ef4444;   /* Red    – error / danger */
+  --info:    #38bdf8;   /* Sky    – informational  */
 
-  /* Semantic */
-  --success:  #34d399;
-  --warning:  #fbbf24;
-  --danger:   #f87171;
-  --info:     #60a5fa;
-
-  /* Text */
+  /* ── Text ── */
   --text-primary:   #f0f2ff;
   --text-secondary: #94a3b8;
   --text-muted:     #475569;
 
-  /* Borders */
+  /* ── Borders ── */
   --border:        rgba(255, 255, 255, 0.07);
-  --border-accent: rgba(124, 111, 255, 0.45);
+  --border-accent: rgba(37, 99, 235, 0.40);
 
-  /* Shape */
+  /* ── Shape ── */
   --radius-sm:   6px;
   --radius-md:   12px;
   --radius-lg:   20px;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md:  0 4px 20px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 0 3px var(--accent-glow);
+  /* ── Shadows ── */
+  --shadow-sm:   0 2px 8px  rgba(0, 0, 0, 0.40);
+  --shadow-md:   0 4px 20px rgba(0, 0, 0, 0.50);
+  --shadow-glow: 0 0 0 3px  var(--accent-glow);
+
+  /* ── Sidebar ── */
+  --sidebar-w:      240px;
+  --sidebar-w-sm:   64px;
 }
 
-/* ── Base Reset & Typography ───────────────────────────────────────────────── */
+/* ── Base Reset & Typography ─────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -66,24 +76,34 @@ html {
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Tektur', system-ui, sans-serif;
   line-height: 1.6;
   min-height: 100dvh;
 }
 
-/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
-::-webkit-scrollbar       { width: 6px; height: 6px; }
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg-surface); }
 ::-webkit-scrollbar-thumb { background: var(--accent-dark); border-radius: 4px; }
 
-/* ── Custom Animations ─────────────────────────────────────────────────────── */
+/* ── Animations ──────────────────────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0px var(--accent-glow); }
+  0%, 100% { box-shadow: 0 0 0 0px  var(--accent-glow); }
   50%       { box-shadow: 0 0 0 6px var(--accent-glow); }
 }
 
@@ -92,26 +112,108 @@ body {
   to   { transform: translateX(0);    opacity: 1; }
 }
 
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
 @keyframes toastIn {
   from { transform: translateX(120%); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
 }
 
-/* ── Utility Classes ───────────────────────────────────────────────────────── */
-.fade-in        { animation: fadeIn 0.25s ease forwards; }
-.slide-in-right { animation: slideInRight 0.25s ease forwards; }
-.speaking-glow  { animation: pulse-glow 1.5s ease-in-out infinite; }
+@keyframes toastOut {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(120%); opacity: 0; }
+}
 
-/* Glass card */
+@keyframes skeletonShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+/* ── Page Transitions ────────────────────────────────────────────────────── */
+.page-enter {
+  animation: scaleIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── Utility Classes ─────────────────────────────────────────────────────── */
+.fade-in          { animation: fadeIn      0.25s ease forwards; }
+.fade-slide-in    { animation: fadeSlideIn 0.25s ease forwards; }
+.slide-in-right   { animation: slideInRight 0.25s ease forwards; }
+.slide-in-left    { animation: slideInLeft  0.25s ease forwards; }
+.speaking-glow    { animation: pulse-glow  1.5s ease-in-out infinite; }
+
+/* ── Glass card ─────────────────────────────────────────────────────────── */
 .glass {
-  background:    rgba(25, 29, 46, 0.7);
+  background:    rgba(25, 29, 46, 0.70);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
 }
 
-/* Engagement level colours used across Phase 2 badges */
+/* ── Skeleton shimmer ───────────────────────────────────────────────────── */
+.skeleton {
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-tile)     50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 400px 100%;
+  animation: skeletonShimmer 1.4s infinite linear;
+}
+
+/* ── Status badge pill ──────────────────────────────────────────────────── */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid currentColor;
+  background: transparent;
+  text-transform: uppercase;
+}
+.status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.status-pill.active    { color: var(--success); }
+.status-pill.scheduled { color: var(--warning); }
+.status-pill.completed { color: var(--text-muted); border-color: var(--text-muted); }
+.status-pill.expired   { color: var(--danger); }
+
+/* ── Card hover lift ────────────────────────────────────────────────────── */
+.card-hover {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Engagement level colours ───────────────────────────────────────────── */
 .engagement-very_low { color: var(--danger);  }
 .engagement-low      { color: var(--warning); }
 .engagement-high     { color: var(--success); }
-.engagement-very_high{ color: #a3f0ce;        }
+.engagement-very_high{ color: #86efac;        }
+
+/* ── Toast container ─────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}

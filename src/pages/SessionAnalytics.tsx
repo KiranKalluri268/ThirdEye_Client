@@ -35,6 +35,7 @@ import EngagementChart, {
 import StudentTable, {
   type StudentSummary,
 } from '../components/analytics/StudentTable';
+import AppShell from '../components/layout/AppShell';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -174,17 +175,16 @@ const SessionAnalytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ background: 'var(--bg-primary)' }}
-      >
-        <div className="text-center">
-          <CircularProgress sx={{ color: 'var(--accent)' }} />
-          <p style={{ color: 'var(--text-secondary)', marginTop: 16, fontSize: 14 }}>
-            Loading session analytics…
-          </p>
+      <AppShell>
+        <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 140px)' }}>
+          <div className="text-center">
+            <CircularProgress sx={{ color: 'var(--accent)' }} />
+            <p style={{ color: 'var(--text-secondary)', marginTop: 16, fontSize: 14 }}>
+              Loading session analytics…
+            </p>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -192,27 +192,26 @@ const SessionAnalytics: React.FC = () => {
 
   if (error || !analytics) {
     return (
-      <div
-        className="flex items-center justify-center min-h-screen"
-        style={{ background: 'var(--bg-primary)' }}
-      >
-        <div className="text-center">
-          <p style={{ color: 'var(--error, #ff4757)', fontSize: 14 }}>
-            {error ?? 'Something went wrong.'}
-          </p>
-          <button
-            onClick={() => navigate('/sessions')}
-            style={{
-              marginTop: 12, padding: '8px 20px',
-              border: '1px solid var(--border)', borderRadius: 10,
-              background: 'var(--bg-elevated)', color: 'var(--text-primary)',
-              cursor: 'pointer', fontSize: 13,
-            }}
-          >
-            ← Back to Sessions
-          </button>
+      <AppShell>
+        <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 140px)' }}>
+          <div className="text-center">
+            <p style={{ color: 'var(--error, #ff4757)', fontSize: 14 }}>
+              {error ?? 'Something went wrong.'}
+            </p>
+            <button
+              onClick={() => navigate('/sessions')}
+              style={{
+                marginTop: 12, padding: '8px 20px',
+                border: '1px solid var(--border)', borderRadius: 10,
+                background: 'var(--bg-elevated)', color: 'var(--text-primary)',
+                cursor: 'pointer', fontSize: 13,
+              }}
+            >
+              ← Back to Sessions
+            </button>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -221,75 +220,80 @@ const SessionAnalytics: React.FC = () => {
   // ── Render: page ───────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="min-h-screen p-6"
-      style={{ background: 'var(--bg-primary)' }}
-    >
-      <div className="max-w-5xl mx-auto">
+    <AppShell>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
 
         {/* ── Header ───────────────────────────────────────────────────────── */}
-        <div className="flex items-start gap-4 mb-8">
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 36 }}>
           <button
             onClick={() => navigate('/sessions')}
             style={{
-              display:      'flex',
-              alignItems:   'center',
+              display:        'flex',
+              alignItems:     'center',
               justifyContent: 'center',
-              width:        36,
-              height:       36,
-              borderRadius: 10,
-              border:       '1px solid var(--border)',
-              background:   'var(--bg-surface)',
-              color:        'var(--text-secondary)',
-              cursor:       'pointer',
-              flexShrink:   0,
-              marginTop:    3,
+              width:          38,
+              height:         38,
+              borderRadius:   10,
+              border:         '1px solid var(--border)',
+              background:     'var(--bg-surface)',
+              color:          'var(--text-secondary)',
+              cursor:         'pointer',
+              flexShrink:     0,
+              marginTop:      2,
+              transition:     'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.borderColor = 'var(--text-muted)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.borderColor = 'var(--border)';
             }}
           >
-            <ArrowBackIcon sx={{ fontSize: 18 }} />
+            <ArrowBackIcon sx={{ fontSize: 20 }} />
           </button>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <h1
                 style={{
-                  fontSize:   11,
-                  fontWeight: 600,
-                  padding:    '2px 8px',
-                  borderRadius: 8,
-                  background: 'var(--bg-elevated)',
-                  color:      'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
+                  fontSize: '1.85rem',
+                  fontWeight: 800,
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.1,
+                  margin: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
-                Completed
+                {sessionInfo.title}
+              </h1>
+              <span className={`status-pill ${sessionInfo.status === 'active' ? 'active' : 'completed'}`} style={{ marginTop: 2 }}>
+                <span className="dot" />
+                {sessionInfo.status === 'active' ? 'Live' : 'Completed'}
               </span>
             </div>
 
-            <h1
-              className="text-2xl font-bold truncate"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {sessionInfo.title}
-            </h1>
-
             {/* Metadata row */}
             <div
-              className="flex flex-wrap items-center gap-4 mt-2"
-              style={{ color: 'var(--text-muted)', fontSize: 13 }}
+              style={{
+                display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 18,
+                color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 500,
+              }}
             >
-              <span className="flex items-center gap-1">
-                <CalendarTodayIcon sx={{ fontSize: 14 }} />
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CalendarTodayIcon sx={{ fontSize: 16 }} />
                 {fmt(sessionInfo.startTime)}
               </span>
-              <span className="flex items-center gap-1">
-                <AccessTimeIcon sx={{ fontSize: 14 }} />
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AccessTimeIcon sx={{ fontSize: 16 }} />
                 {fmtDuration(sessionInfo.durationMinutes)}
               </span>
               {isInstructor && students.length > 0 && (
-                <span className="flex items-center gap-1">
-                  <PeopleIcon sx={{ fontSize: 14 }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <PeopleIcon sx={{ fontSize: 16 }} />
                   {students.length} student{students.length !== 1 ? 's' : ''} tracked
                 </span>
               )}
@@ -304,13 +308,10 @@ const SessionAnalytics: React.FC = () => {
         >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2
-                className="text-base font-semibold"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Engagement Over Time
               </h2>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
                 1-minute averages
                 {selectedStudents.size > 0 &&
                   ` · ${selectedStudents.size} student${selectedStudents.size !== 1 ? 's' : ''} overlaid`}
@@ -359,13 +360,10 @@ const SessionAnalytics: React.FC = () => {
               style={{ borderBottom: '1px solid var(--border)' }}
             >
               <div>
-                <h2
-                  className="text-base font-semibold"
-                  style={{ color: 'var(--text-primary)' }}
-                >
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                   Student Engagement Summary
                 </h2>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
                   Click a row to overlay the student's line on the chart
                 </p>
               </div>
@@ -395,7 +393,7 @@ const SessionAnalytics: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 };
 

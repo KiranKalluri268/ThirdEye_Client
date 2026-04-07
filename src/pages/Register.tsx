@@ -11,6 +11,7 @@ import { TextField, Button, Alert, CircularProgress, ToggleButton, ToggleButtonG
 import SchoolIcon  from '@mui/icons-material/School';
 import PersonIcon  from '@mui/icons-material/Person';
 import useAuth from '../hooks/useAuth';
+import Logo    from '../components/layout/Logo';
 
 /**
  * @description Renders the registration form with name, email, password,
@@ -56,9 +57,7 @@ const Register: React.FC = () => {
 
       <div className="glass w-full max-w-md p-8 rounded-2xl fade-in relative z-10">
         <div className="flex items-center gap-2 mb-6">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold"
-               style={{ background: 'var(--accent)', color: '#fff' }}>TE</div>
-          <span className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>ThirdEye</span>
+          <Logo size={30} />
         </div>
 
         <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Create account</h2>

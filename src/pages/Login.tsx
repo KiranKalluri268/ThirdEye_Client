@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TextField, Button, Alert, CircularProgress } from '@mui/material';
 import useAuth from '../hooks/useAuth';
+import Logo    from '../components/layout/Logo';
 
 /**
  * @description Renders the login form. On submit, calls auth.login() and
@@ -57,12 +58,8 @@ const Login: React.FC = () => {
              style={{ background: 'var(--accent-light)', filter: 'blur(60px)' }} />
 
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg"
-                 style={{ background: 'var(--accent)', color: '#fff' }}>
-              TE
-            </div>
-            <span className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>ThirdEye</span>
+          <div className="mb-10">
+            <Logo size={38} />
           </div>
           <h1 className="text-4xl font-bold mb-4 leading-tight" style={{ color: 'var(--text-primary)' }}>
             AI-Powered<br />Online Learning
@@ -93,9 +90,7 @@ const Login: React.FC = () => {
           style={{ border: '1px solid var(--border)' }}
         >
           <div className="flex items-center gap-2 mb-1 lg:hidden">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold"
-                 style={{ background: 'var(--accent)', color: '#fff' }}>TE</div>
-            <span className="font-bold" style={{ color: 'var(--text-primary)' }}>ThirdEye</span>
+            <Logo size={26} />
           </div>
 
           <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Welcome back</h2>

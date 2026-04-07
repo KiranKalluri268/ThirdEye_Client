@@ -3,12 +3,13 @@
  * @description Session listing page. Shows all sessions filtered by role.
  *              Instructors can create new sessions via a modal.
  *              Students can enroll and join active sessions.
+ *              Uses AppShell, skeleton loaders, status pills, and toast notifications.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Button, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, CircularProgress, IconButton, Tooltip,
 } from '@mui/material';
 import AddIcon         from '@mui/icons-material/Add';
@@ -17,25 +18,31 @@ import HowToRegIcon    from '@mui/icons-material/HowToReg';
 import PlayArrowIcon   from '@mui/icons-material/PlayArrow';
 import BarChartIcon    from '@mui/icons-material/BarChart';
 
-import api      from '../api/api';
-import useAuth  from '../hooks/useAuth';
+import api           from '../api/api';
+import useAuth       from '../hooks/useAuth';
+import { useToast }  from '../context/ToastContext';
+import AppShell      from '../components/layout/AppShell';
+import { SkeletonList } from '../components/layout/SkeletonCard';
 import type { ISession } from '../types';
 
-/** Maps session status to MUI Chip color */
-const STATUS_CHIP: Record<string, { label: string; color: 'success' | 'warning' | 'default' | 'error' }> = {
-  active:    { label: 'Live',      color: 'success' },
-  scheduled: { label: 'Scheduled', color: 'warning' },
-  completed: { label: 'Completed', color: 'default' },
-  expired:   { label: 'Expired',   color: 'error'   },
+/* ── Status pill ──────────────────────────────────────────────────────── */
+
+const StatusPill: React.FC<{ status: string }> = ({ status }) => {
+  const label = status === 'active' ? 'Live' : status;
+  return (
+    <span className={`status-pill ${status}`}>
+      <span className="dot" />
+      {label}
+    </span>
+  );
 };
 
-/**
- * @description Formats a date string to a readable locale string.
- * @param dateStr - ISO date string
- * @returns {string} e.g. "Apr 5, 2026, 12:00 PM"
- */
+/* ── Helpers ──────────────────────────────────────────────────────────── */
+
 const formatDate = (dateStr: string): string =>
   new Date(dateStr).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+
+/* ── Component ────────────────────────────────────────────────────────── */
 
 /**
  * @description Displays all sessions with role-appropriate actions.
@@ -45,10 +52,11 @@ const formatDate = (dateStr: string): string =>
 const Sessions: React.FC = () => {
   const { user }   = useAuth();
   const navigate   = useNavigate();
+  const { push }   = useToast();
 
   const [sessions, setSessions] = useState<ISession[]>([]);
   const [loading,  setLoading]  = useState(true);
-  const [open,     setOpen]     = useState(false); // Create session modal
+  const [open,     setOpen]     = useState(false);
 
   const [newTitle,    setNewTitle]    = useState('');
   const [newDesc,     setNewDesc]     = useState('');
@@ -56,27 +64,26 @@ const Sessions: React.FC = () => {
   const [newDuration, setNewDuration] = useState(60);
   const [creating,    setCreating]    = useState(false);
 
-  /**
-   * @description Fetches sessions from the server (role-filtered by backend).
-   */
+  /** Fetches sessions from the server (role-filtered by backend). */
   const fetchSessions = useCallback(async () => {
     try {
       const res = await api.get<{ success: boolean; sessions: ISession[] }>('/sessions');
       setSessions(res.data.sessions);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      push('Failed to load sessions.', 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [push]);
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
-  /**
-   * @description Submits the create session form.
-   */
+  /** Submits the create session form. */
   const handleCreate = async (): Promise<void> => {
-    if (!newTitle || !newDate) return;
+    if (!newTitle || !newDate) {
+      push('Please fill in title and start time.', 'warning');
+      return;
+    }
     setCreating(true);
     try {
       await api.post('/sessions', {
@@ -85,75 +92,93 @@ const Sessions: React.FC = () => {
       });
       setOpen(false);
       setNewTitle(''); setNewDesc(''); setNewDate(''); setNewDuration(60);
+      push('Session created successfully!', 'success');
       fetchSessions();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      push('Failed to create session.', 'error');
     } finally {
       setCreating(false);
     }
   };
 
-  /**
-   * @description Starts a session, then navigates instructor to the classroom.
-   * @param sessionId - MongoDB session ID
-   */
+  /** Starts a session then navigates instructor to the classroom. */
   const handleStart = async (sessionId: string): Promise<void> => {
     try {
       const res = await api.patch<{ success: boolean; roomCode: string }>(`/sessions/${sessionId}/start`);
       navigate(`/classroom/${res.data.roomCode}`);
-    } catch (err) { console.error(err); }
+    } catch {
+      push('Could not start session.', 'error');
+    }
   };
 
-  /**
-   * @description Enrolls the student in a session and refreshes.
-   * @param sessionId - MongoDB session ID
-   */
+  /** Enrolls the student in a session and refreshes. */
   const handleEnroll = async (sessionId: string): Promise<void> => {
     try {
       await api.post(`/sessions/${sessionId}/enroll`);
+      push('Enrolled successfully!', 'success');
       fetchSessions();
-    } catch (err) { console.error(err); }
+    } catch {
+      push('Enrollment failed.', 'error');
+    }
   };
 
   const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--bg-primary)' }}>
-      <div className="max-w-5xl mx-auto">
+    <AppShell>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div
+          style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                   marginBottom: 32, gap: 16, flexWrap: 'wrap' }}
+          className="fade-in"
+        >
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>
               {isInstructor ? 'My Sessions' : 'Available Sessions'}
             </h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              {isInstructor ? 'Create and manage your live classes' : 'Join a session or enroll for upcoming ones'}
+            <p style={{ fontSize: '0.875rem', marginTop: 6, color: 'var(--text-secondary)' }}>
+              {isInstructor
+                ? 'Create and manage your live classes'
+                : 'Join a session or enroll for upcoming ones'}
             </p>
           </div>
           {isInstructor && (
             <Button
+              id="new-session-btn"
               startIcon={<AddIcon />}
               variant="contained"
               onClick={() => setOpen(true)}
-              sx={{ background: 'var(--accent)', borderRadius: '10px', textTransform: 'none', fontWeight: 600,
-                   '&:hover': { background: 'var(--accent-dark)' } }}
+              sx={{
+                background: 'var(--accent)', borderRadius: '10px', fontWeight: 700,
+                '&:hover': { background: 'var(--accent-dark)' },
+              }}
             >
               New Session
             </Button>
           )}
         </div>
 
-        {/* Session cards */}
+        {/* Session cards or skeleton */}
         {loading ? (
-          <div className="flex justify-center mt-20"><CircularProgress sx={{ color: 'var(--accent)' }} /></div>
+          <SkeletonList count={5} height={90} />
         ) : sessions.length === 0 ? (
-          <div className="text-center mt-20" style={{ color: 'var(--text-muted)' }}>
-            No sessions yet.
+          <div
+            className="glass"
+            style={{
+              borderRadius: 'var(--radius-lg)',
+              padding: '48px 24px',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <VideoCallIcon sx={{ fontSize: 40, opacity: 0.3, mb: 1 }} />
+            <p style={{ fontSize: '0.9rem' }}>No sessions yet.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {sessions.map((session) => {
-              const statusCfg = STATUS_CHIP[session.status] || STATUS_CHIP.scheduled;
               const isEnrolled = session.enrolledStudents?.some((s) =>
                 typeof s === 'string' ? s === user?._id : s._id === user?._id
               );
@@ -161,57 +186,60 @@ const Sessions: React.FC = () => {
               return (
                 <div
                   key={session._id}
-                  className="glass rounded-2xl p-5 flex items-center justify-between fade-in"
+                  className="glass card-hover fade-in"
                   onClick={session.status === 'completed'
                     ? () => navigate(`/sessions/${session._id}/analytics`)
                     : undefined}
                   style={{
-                    border:  session.status === 'active'
-                      ? '1px solid var(--accent)'
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    border: session.status === 'active'
+                      ? '1px solid var(--border-accent)'
                       : '1px solid var(--border)',
-                    cursor:  session.status === 'completed' ? 'pointer' : 'default',
-                    transition: 'border-color 0.15s, box-shadow 0.15s',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (session.status === 'completed')
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (session.status === 'completed')
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
+                    cursor: session.status === 'completed' ? 'pointer' : 'default',
                   }}
                 >
-                  <div className="flex-1 min-w-0 mr-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Chip label={statusCfg.label} color={statusCfg.color} size="small"
-                            sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }} />
+                  {/* Session info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <StatusPill status={session.status} />
                       {session.status === 'active' && (
-                        <span className="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse" />
+                        <span
+                          style={{
+                            width: 7, height: 7, borderRadius: '50%',
+                            background: 'var(--success)',
+                            display: 'inline-block',
+                            animation: 'pulse-glow 1.5s ease-in-out infinite',
+                          }}
+                        />
                       )}
                     </div>
-                    <h3 className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                    <h3 style={{
+                      fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
                       {session.title}
                     </h3>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                    <p style={{ fontSize: '0.78rem', marginTop: 3, color: 'var(--text-secondary)' }}>
                       {session.instructor?.name} · {formatDate(session.startTime)} · {session.durationMinutes} min
                     </p>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* Completed: analytics button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     {session.status === 'completed' && (
                       <Tooltip title="View Engagement Analytics">
                         <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/sessions/${session._id}/analytics`);
-                          }}
+                          id={`analytics-btn-${session._id}`}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/sessions/${session._id}/analytics`); }}
                           sx={{
-                            background: 'var(--bg-elevated)',
-                            color:      'var(--accent)',
-                            border:     '1px solid var(--border)',
-                            '&:hover':  { background: 'var(--accent-glow)' },
+                            background: 'var(--bg-elevated)', color: 'var(--accent)',
+                            border: '1px solid var(--border)',
+                            '&:hover': { background: 'var(--accent-glow)', borderColor: 'var(--accent)' },
                           }}
                         >
                           <BarChartIcon sx={{ fontSize: 18 }} />
@@ -220,33 +248,51 @@ const Sessions: React.FC = () => {
                     )}
                     {isInstructor && session.status === 'scheduled' && (
                       <Tooltip title="Start session">
-                        <IconButton onClick={() => handleStart(session._id)}
-                          sx={{ background: 'var(--accent)', color: '#fff', '&:hover': { background: 'var(--accent-dark)' } }}>
+                        <IconButton
+                          id={`start-btn-${session._id}`}
+                          onClick={() => handleStart(session._id)}
+                          sx={{ background: 'var(--accent)', color: '#fff', '&:hover': { background: 'var(--accent-dark)' } }}
+                        >
                           <PlayArrowIcon />
                         </IconButton>
                       </Tooltip>
                     )}
                     {isInstructor && session.status === 'active' && (
-                      <Button size="small" startIcon={<VideoCallIcon />}
+                      <Button
+                        size="small"
+                        startIcon={<VideoCallIcon />}
                         onClick={() => navigate(`/classroom/${session.roomCode}`)}
-                        sx={{ background: 'var(--accent)', color: '#fff', borderRadius: '8px',
-                              textTransform: 'none', '&:hover': { background: 'var(--accent-dark)' } }}>
+                        sx={{
+                          background: 'var(--accent)', color: '#fff', borderRadius: '8px',
+                          '&:hover': { background: 'var(--accent-dark)' },
+                        }}
+                      >
                         Rejoin
                       </Button>
                     )}
                     {!isInstructor && session.status === 'scheduled' && !isEnrolled && (
-                      <Button size="small" startIcon={<HowToRegIcon />}
+                      <Button
+                        size="small"
+                        startIcon={<HowToRegIcon />}
                         onClick={() => handleEnroll(session._id)}
-                        sx={{ border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: '8px',
-                              textTransform: 'none', '&:hover': { background: 'var(--accent-glow)' } }}>
+                        sx={{
+                          border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: '8px',
+                          '&:hover': { background: 'var(--accent-glow)' },
+                        }}
+                      >
                         Enroll
                       </Button>
                     )}
                     {!isInstructor && session.status === 'active' && isEnrolled && (
-                      <Button size="small" startIcon={<VideoCallIcon />}
+                      <Button
+                        size="small"
+                        startIcon={<VideoCallIcon />}
                         onClick={() => navigate(`/classroom/${session.roomCode}`)}
-                        sx={{ background: 'var(--accent)', color: '#fff', borderRadius: '8px',
-                              textTransform: 'none', '&:hover': { background: 'var(--accent-dark)' } }}>
+                        sx={{
+                          background: 'var(--accent)', color: '#fff', borderRadius: '8px',
+                          '&:hover': { background: 'var(--accent-dark)' },
+                        }}
+                      >
                         Join
                       </Button>
                     )}
@@ -259,34 +305,59 @@ const Sessions: React.FC = () => {
       </div>
 
       {/* Create Session Modal */}
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px' } }}>
-        <DialogTitle sx={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border)' }}>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '20px',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', fontWeight: 700 }}
+        >
           New Session
         </DialogTitle>
         <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <TextField label="Title"        value={newTitle}    onChange={(e) => setNewTitle(e.target.value)}    fullWidth sx={inputSx} />
-          <TextField label="Description"  value={newDesc}     onChange={(e) => setNewDesc(e.target.value)}     fullWidth multiline rows={2} sx={inputSx} />
-          <TextField label="Start Time"   type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)}
+          <TextField label="Title"       value={newTitle}    onChange={(e) => setNewTitle(e.target.value)}    fullWidth sx={inputSx} />
+          <TextField label="Description" value={newDesc}     onChange={(e) => setNewDesc(e.target.value)}     fullWidth multiline rows={2} sx={inputSx} />
+          <TextField label="Start Time"  type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)}
             InputLabelProps={{ shrink: true }} fullWidth sx={inputSx} />
           <TextField label="Duration (minutes)" type="number" value={newDuration}
             onChange={(e) => setNewDuration(Number(e.target.value))} fullWidth sx={inputSx} />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setOpen(false)} sx={{ color: 'var(--text-secondary)', textTransform: 'none' }}>Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" disabled={creating}
-            sx={{ background: 'var(--accent)', borderRadius: '8px', textTransform: 'none',
-                  '&:hover': { background: 'var(--accent-dark)' } }}>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={() => setOpen(false)}
+            sx={{ color: 'var(--text-secondary)' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            id="create-session-submit-btn"
+            onClick={handleCreate}
+            variant="contained"
+            disabled={creating}
+            sx={{
+              background: 'var(--accent)', borderRadius: '10px', fontWeight: 700,
+              '&:hover': { background: 'var(--accent-dark)' },
+            }}
+          >
             {creating ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </AppShell>
   );
 };
 
 const inputSx = {
-  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+  '& .MuiInputLabel-root': { color: 'var(--text-secondary)', fontFamily: 'Tektur' },
   '& .MuiInputLabel-root.Mui-focused': { color: 'var(--accent)' },
   '& .MuiOutlinedInput-root': {
     color: 'var(--text-primary)', background: 'var(--bg-elevated)', borderRadius: '10px',
