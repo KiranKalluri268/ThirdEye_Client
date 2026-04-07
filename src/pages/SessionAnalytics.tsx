@@ -35,8 +35,6 @@ import EngagementChart, {
 import StudentTable, {
   type StudentSummary,
 } from '../components/analytics/StudentTable';
-import AppShell from '../components/layout/AppShell';
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SessionInfo {
@@ -175,7 +173,7 @@ const SessionAnalytics: React.FC = () => {
 
   if (loading) {
     return (
-      <AppShell>
+      <>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 140px)' }}>
           <div className="text-center">
             <CircularProgress sx={{ color: 'var(--accent)' }} />
@@ -184,7 +182,7 @@ const SessionAnalytics: React.FC = () => {
             </p>
           </div>
         </div>
-      </AppShell>
+      </>
     );
   }
 
@@ -192,7 +190,7 @@ const SessionAnalytics: React.FC = () => {
 
   if (error || !analytics) {
     return (
-      <AppShell>
+      <>
         <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 140px)' }}>
           <div className="text-center">
             <p style={{ color: 'var(--error, #ff4757)', fontSize: 14 }}>
@@ -211,7 +209,7 @@ const SessionAnalytics: React.FC = () => {
             </button>
           </div>
         </div>
-      </AppShell>
+      </>
     );
   }
 
@@ -220,8 +218,8 @@ const SessionAnalytics: React.FC = () => {
   // ── Render: page ───────────────────────────────────────────────────────────
 
   return (
-    <AppShell>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+    <>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 24px' }}>
 
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 36 }}>
@@ -303,10 +301,10 @@ const SessionAnalytics: React.FC = () => {
 
         {/* ── Chart section ────────────────────────────────────────────────── */}
         <div
-          className="glass rounded-2xl p-5 mb-6 fade-in"
-          style={{ border: '1px solid var(--border)' }}
+          className="glass rounded-2xl fade-in"
+          style={{ border: '1px solid var(--border)', padding: '1.5rem', marginBottom: '1.5rem' }}
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between" style={{ marginBottom: '1.5rem' }}>
             <div>
               <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Engagement Over Time
@@ -356,8 +354,8 @@ const SessionAnalytics: React.FC = () => {
             className="glass rounded-2xl fade-in"
             style={{ border: '1px solid var(--border)', overflow: 'hidden' }}
           >
-            <div className="flex items-center justify-between px-5 py-4"
-              style={{ borderBottom: '1px solid var(--border)' }}
+            <div className="flex items-center justify-between"
+              style={{ borderBottom: '1px solid var(--border)', padding: '1.25rem 1.5rem' }}
             >
               <div>
                 <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
@@ -393,7 +391,7 @@ const SessionAnalytics: React.FC = () => {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 };
 

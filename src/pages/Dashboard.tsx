@@ -13,8 +13,8 @@ import VideoCallIcon from '@mui/icons-material/VideoCall';
 
 import api                   from '../api/api';
 import useAuth               from '../hooks/useAuth';
-import AppShell              from '../components/layout/AppShell';
 import { SkeletonStatRow, SkeletonList } from '../components/layout/SkeletonCard';
+import CreateSessionModal    from '../components/CreateSessionModal';
 import type { ISession }     from '../types';
 
 /* ── Status pill helper ──────────────────────────────────────────────── */
@@ -45,12 +45,13 @@ const Dashboard: React.FC = () => {
   const [sessions, setSessions] = useState<ISession[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [activePrompt, setActivePrompt] = useState<ISession | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   useEffect(() => {
     api.get<{ success: boolean; sessions: ISession[] }>('/sessions')
       .then((r) => {
         const allSessions = r.data.sessions;
-        setSessions(allSessions.slice(0, 5));
+        setSessions(allSessions);
         
         // Find if there's any ongoing session the user belongs to
         const ongoing = allSessions.find((s) => {
@@ -76,18 +77,26 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const reloadSessions = () => {
+    setLoading(true);
+    api.get<{ success: boolean; sessions: ISession[] }>('/sessions')
+      .then((r) => setSessions(r.data.sessions))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
   const isInstructor   = user?.role === 'instructor' || user?.role === 'admin';
   const activeSessions = sessions.filter((s) => s.status === 'active');
   const totalSessions  = sessions.length;
 
   return (
-    <AppShell>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+    <>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '40px 24px' }}>
 
         {/* Welcome */}
         <div style={{ marginBottom: 32 }} className="fade-in">
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-            Welcome back, {user?.name.split(' ')[0]} 👋
+            Welcome back, {user?.name.split(' ')[0]} !
           </h1>
           <p style={{ marginTop: 6, fontSize: '0.875rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
             {user?.role} account
@@ -156,7 +165,7 @@ const Dashboard: React.FC = () => {
           <Button
             variant="contained"
             startIcon={isInstructor ? <AddIcon /> : <VideoCallIcon />}
-            onClick={() => navigate('/sessions')}
+            onClick={() => isInstructor ? setCreateModalOpen(true) : navigate('/sessions')}
             id="dashboard-cta-btn"
             sx={{
               background: 'var(--accent)', borderRadius: '10px', fontWeight: 700,
@@ -170,10 +179,19 @@ const Dashboard: React.FC = () => {
 
         {/* Recent sessions */}
         <div>
-          <h2 style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.04em',
-                        textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
-            Recent Sessions
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <h2 style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '0.04em',
+                          textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+              Recent Sessions
+            </h2>
+            <Button 
+              size="small" 
+              onClick={() => navigate('/sessions')}
+              sx={{ textTransform: 'none', fontWeight: 600, color: 'var(--accent)' }}
+            >
+              See All
+            </Button>
+          </div>
 
           {loading ? (
             <SkeletonList count={4} height={68} />
@@ -181,7 +199,7 @@ const Dashboard: React.FC = () => {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No sessions yet.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {sessions.map((s) => (
+              {sessions.slice(0, 5).map((s) => (
                 <div
                   key={s._id}
                   className="glass card-hover fade-in"
@@ -252,7 +270,13 @@ const Dashboard: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </AppShell>
+      
+      <CreateSessionModal 
+        open={createModalOpen} 
+        onClose={() => setCreateModalOpen(false)} 
+        onSuccess={reloadSessions}
+      />
+    </>
   );
 };
 

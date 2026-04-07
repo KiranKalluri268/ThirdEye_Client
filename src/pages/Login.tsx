@@ -45,38 +45,42 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex min-h-screen relative overflow-hidden" style={{ background: 'linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%)' }}>
+      {/* Global Background decoration */}
+      <div className="absolute top-10 -left-10 w-96 h-96 rounded-full opacity-30 pointer-events-none"
+           style={{ background: 'var(--accent)', filter: 'blur(100px)' }} />
+      <div className="absolute bottom-10 right-10 w-[30rem] h-[30rem] rounded-full opacity-20 pointer-events-none"
+           style={{ background: 'var(--info)', filter: 'blur(120px)' }} />
+
       {/* Left — branding panel */}
       <div
-        className="hidden lg:flex flex-col justify-center px-16 w-1/2 relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #13151f 0%, #1a1d2e 100%)' }}
+        className="hidden lg:flex flex-col justify-center w-1/2 relative z-10"
+        style={{ padding: '0 10rem' }}
       >
-        {/* Background decoration */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-20"
-             style={{ background: 'var(--accent)', filter: 'blur(80px)' }} />
-        <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full opacity-10"
-             style={{ background: 'var(--accent-light)', filter: 'blur(60px)' }} />
 
-        <div className="relative z-10">
-          <div className="mb-10">
-            <Logo size={38} />
+        <div className="relative z-10 w-full xl:w-[85%] 2xl:w-[75%] mx-auto flex flex-col justify-center h-full">
+          <div className="mb-16">
+            <Logo size={42} />
           </div>
-          <h1 className="text-4xl font-bold mb-4 leading-tight" style={{ color: 'var(--text-primary)' }}>
-            AI-Powered<br />Online Learning
+          <h1 className="text-5xl xl:text-6xl font-extrabold mb-0 leading-tight tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            AI-Powered<br />
+            <span style={{ color: 'var(--accent)' }}>Online Learning</span>
           </h1>
-          <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-xl xl:text-xl font-medium leading-relaxed mb-12 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
             Real-time engagement monitoring that helps instructors understand their students — invisibly.
           </p>
 
           {/* Feature bullets */}
-          <div className="mt-10 flex flex-col gap-3">
-            {['Live video classrooms', 'AI engagement detection', 'Instant session insights'].map((f) => (
-              <div key={f} className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs"
-                     style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}>
-                  ✓
+          <div className="mt-8 flex flex-col gap-6">
+            {['Live video classrooms with real-time feedback', 'Innocuous AI engagement detection', 'Instant post-session statistical insights'].map((f) => (
+              <div key={f} className="flex items-center gap-4">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm"
+                     style={{ background: 'var(--bg-surface)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
                 </div>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{f}</span>
+                <span className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>{f}</span>
               </div>
             ))}
           </div>
@@ -86,8 +90,8 @@ const Login: React.FC = () => {
       {/* Right — login form */}
       <div className="flex flex-col items-center justify-center flex-1 px-6">
         <div
-          className="glass w-full max-w-md p-8 rounded-2xl fade-in"
-          style={{ border: '1px solid var(--border)' }}
+          className="glass w-full max-w-md rounded-2xl fade-in shadow-xl"
+          style={{ border: '1px solid var(--border)', padding: '2.5rem' }}
         >
           <div className="flex items-center gap-2 mb-1 lg:hidden">
             <Logo size={26} />
@@ -98,7 +102,7 @@ const Login: React.FC = () => {
 
           {error && <Alert severity="error" sx={{ mb: 2, background: '#2d1b1b' }}>{error}</Alert>}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem' }}>
             <TextField
               label="Email"
               type="email"
@@ -106,7 +110,7 @@ const Login: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               fullWidth
               autoComplete="email"
-              sx={inputSx}
+              sx={{ ...inputSx, mb: 2 }}
             />
             <TextField
               label="Password"
@@ -115,7 +119,7 @@ const Login: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               fullWidth
               autoComplete="current-password"
-              sx={inputSx}
+              sx={{ ...inputSx, mb: 1 }}
             />
 
             <Button
@@ -135,7 +139,7 @@ const Login: React.FC = () => {
 
           <p className="text-center text-sm mt-6" style={{ color: 'var(--text-secondary)' }}>
             Don't have an account?{' '}
-            <Link to="/register" style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
+            <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600 }}>
               Create one
             </Link>
           </p>

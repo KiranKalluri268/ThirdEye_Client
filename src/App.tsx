@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
 
 import { AuthProvider }    from './context/AuthContext';
@@ -23,30 +23,42 @@ import SessionAnalytics from './pages/SessionAnalytics';
 
 /* ── MUI Theme ─────────────────────────────────────────────────────────── */
 
-/** MUI dark theme tuned to ThirdEye's Black/White/Blue design tokens */
-const darkTheme = createTheme({
+/** MUI light theme tuned to ThirdEye's Light Mode design tokens */
+const lightTheme = createTheme({
   palette: {
-    mode:       'dark',
-    primary:    { main: '#2563eb', light: '#60a5fa', dark: '#1d4ed8' },
-    error:      { main: '#ef4444' },
-    warning:    { main: '#f97316' },
-    success:    { main: '#22c55e' },
-    info:       { main: '#38bdf8' },
-    background: { default: '#090b12', paper: '#11141f' },
+    mode:       'light',
+    primary:    { main: '#2563eb', light: '#bfdbfe', dark: '#1d4ed8' },
+    error:      { main: '#dc2626' },
+    warning:    { main: '#ea580c' },
+    success:    { main: '#16a34a' },
+    info:       { main: '#0284c7' },
+    background: { default: '#f8fafc', paper: '#ffffff' },
+    text:       { primary: '#0f172a', secondary: '#475569' },
   },
   typography: {
-    fontFamily: "'Tektur', system-ui, sans-serif",
+    fontFamily: "'Inter', system-ui, sans-serif",
+    h1: { fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontWeight: 600, letterSpacing: '-0.02em' },
+    h2: { fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontWeight: 600, letterSpacing: '-0.02em' },
+    h3: { fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontWeight: 600 },
+    h4: { fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontWeight: 600 },
+    h5: { fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontWeight: 600 },
+    h6: { fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontWeight: 600 },
   },
   shape: {
     borderRadius: 12,
   },
   components: {
     MuiCssBaseline: {
-      styleOverrides: { body: { backgroundColor: '#090b12' } },
+      styleOverrides: { body: { backgroundColor: '#f8fafc' } },
     },
     MuiButton: {
       styleOverrides: {
         root: { textTransform: 'none', fontWeight: 600 },
+      },
+    },
+    MuiDialogTitle: {
+      styleOverrides: {
+        root: { fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", fontWeight: 600 },
       },
     },
     MuiChip: {
@@ -77,7 +89,7 @@ const AnimatedRoutes: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, [location.pathname]);
 
   return (
-    <div ref={ref} className="page-enter" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+    <div ref={ref} className="page-enter" style={{ flex: 1 }}>
       {children}
     </div>
   );
@@ -90,7 +102,7 @@ const AnimatedRoutes: React.FC<{ children: React.ReactNode }> = ({ children }) =
  *              and the full client-side route tree with animated transitions.
  */
 const App: React.FC = () => (
-  <ThemeProvider theme={darkTheme}>
+  <ThemeProvider theme={lightTheme}>
     <CssBaseline />
     <ToastProvider>
       <AuthProvider>
@@ -102,32 +114,40 @@ const App: React.FC = () => (
   </ThemeProvider>
 );
 
+import AppShell from './components/layout/AppShell';
+
 /** Inner wrapper that needs BrowserRouter context for useLocation */
 const AnimatedRoutesWrapper: React.FC = () => (
-  <AnimatedRoutes>
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login"    element={<Login />}    />
-      <Route path="/register" element={<Register />} />
+  <Routes>
+    {/* Public routes */}
+    <Route path="/login"    element={<AnimatedRoutes><Login /></AnimatedRoutes>}    />
+    <Route path="/register" element={<AnimatedRoutes><Register /></AnimatedRoutes>} />
 
-      {/* Protected routes */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute><Dashboard /></ProtectedRoute>
-      } />
-      <Route path="/sessions" element={
-        <ProtectedRoute><Sessions /></ProtectedRoute>
-      } />
-      <Route path="/classroom/:roomCode" element={
+    {/* Classroom is completely full-screen & standalone */}
+    <Route path="/classroom/:roomCode" element={
+      <AnimatedRoutes>
         <ProtectedRoute><Classroom /></ProtectedRoute>
-      } />
-      <Route path="/sessions/:sessionId/analytics" element={
-        <ProtectedRoute><SessionAnalytics /></ProtectedRoute>
-      } />
+      </AnimatedRoutes>
+    } />
 
-      {/* Default redirect */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
-  </AnimatedRoutes>
+    {/* Persistent AppShell wrapped routes */}
+    <Route element={
+      <ProtectedRoute>
+        <AppShell>
+          <AnimatedRoutes>
+            <Outlet />
+          </AnimatedRoutes>
+        </AppShell>
+      </ProtectedRoute>
+    }>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/sessions" element={<Sessions />} />
+        <Route path="/sessions/:sessionId/analytics" element={<SessionAnalytics />} />
+      </Route>
+
+    {/* Default redirect */}
+    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+  </Routes>
 );
 
 export default App;

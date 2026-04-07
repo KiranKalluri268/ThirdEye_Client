@@ -212,10 +212,9 @@ const StudentTable: React.FC<StudentTableProps> = ({
                 fontSize:     11,
                 fontWeight:   700,
                 color:        LABEL_COLORS[student.avgLabel] ?? 'var(--text-secondary)',
-                background:   'rgba(0,0,0,0.3)',
-                padding:      '2px 8px',
+                background:   `${LABEL_COLORS[student.avgLabel] ?? '#cccccc'}1A`,
+                padding:      '3px 10px',
                 borderRadius: 12,
-                border:       `1px solid ${LABEL_COLORS[student.avgLabel] ?? 'transparent'}44`,
                 display:      'inline-block',
                 whiteSpace:   'nowrap',
               }}

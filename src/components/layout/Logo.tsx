@@ -21,9 +21,23 @@ interface LogoProps {
  */
 const Logo: React.FC<LogoProps> = ({ size = 32, showName = true, className = '' }) => (
   <div
-    className={`flex items-center gap-3 ${className}`}
+    className={`flex items-center gap-1 ${className}`}
     style={{ userSelect: 'none' }}
   >
+    {showName && (
+      <span
+        style={{
+          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+          fontWeight: 800,
+          fontSize: size * 0.56,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.03em',
+        }}
+      >
+        ThirdEye
+      </span>
+    )}
+
     {/* Eye SVG – rotated 90° so it looks sideways */}
     <svg
       width={size}
@@ -57,7 +71,7 @@ const Logo: React.FC<LogoProps> = ({ size = 32, showName = true, className = '' 
         cx="20"
         cy="20"
         r="2.2"
-        fill="var(--secondary)"
+        fill="var(--bg-surface)"
         opacity="0.9"
       />
       {/* Top lash accent */}
@@ -65,20 +79,6 @@ const Logo: React.FC<LogoProps> = ({ size = 32, showName = true, className = '' 
       {/* Bottom lash accent */}
       <line x1="20" y1="33" x2="20" y2="37" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
     </svg>
-
-    {showName && (
-      <span
-        style={{
-          fontFamily: "'Tektur', system-ui, sans-serif",
-          fontWeight: 700,
-          fontSize: size * 0.56,
-          color: 'var(--text-primary)',
-          letterSpacing: '-0.02em',
-        }}
-      >
-        ThirdEye
-      </span>
-    )}
   </div>
 );
 

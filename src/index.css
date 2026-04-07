@@ -8,42 +8,42 @@
  *              - Reusable utility CSS classes
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Tektur:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 @import "tailwindcss";
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
   /* ── Primaries ── */
-  --primary:   #0a0a0a;          /* Black  – primary brand   */
-  --secondary: #ffffff;          /* White  – secondary brand */
+  --primary:   #ffffff;          /* White – primary brand   */
+  --secondary: #0f172a;          /* Slate 900 – secondary brand */
 
   /* ── Accent (Blue) ── */
-  --accent:        #2563eb;              /* Blue-600 – main interactive */
-  --accent-light:  #60a5fa;             /* Blue-400 – soft highlights  */
+  --accent:        #2563eb;             /* Blue-600 – main interactive */
+  --accent-light:  #bfdbfe;             /* Blue-200 – soft highlights  */
   --accent-dark:   #1d4ed8;             /* Blue-700 – hover / pressed  */
-  --accent-glow:   rgba(37,99,235,0.18);/* Subtle blue glow            */
+  --accent-glow:   rgba(37, 99, 235, 0.15); /* Subtle blue glow        */
 
   /* ── Backgrounds ── */
-  --bg-primary:   #090b12;
-  --bg-surface:   #11141f;
-  --bg-elevated:  #191d2e;
-  --bg-tile:      #1e2235;
-  --bg-overlay:   rgba(9, 11, 18, 0.88);
+  --bg-primary:   #f8fafc;  /* Slate 50  – background */
+  --bg-surface:   #ffffff;  /* White     – panels/cards */
+  --bg-elevated:  #f1f5f9;  /* Slate 100 – slight elevated/hover */
+  --bg-tile:      #e2e8f0;  /* Slate 200 – video tiles/placeholders */
+  --bg-overlay:   rgba(255, 255, 255, 0.85);
 
   /* ── Semantic colours ── */
-  --success: #22c55e;   /* Green  – normal / good  */
-  --warning: #f97316;   /* Orange – warning        */
-  --danger:  #ef4444;   /* Red    – error / danger */
-  --info:    #38bdf8;   /* Sky    – informational  */
+  --success: #16a34a;   /* Green-600  – normal / good  */
+  --warning: #ea580c;   /* Orange-600 – warning        */
+  --danger:  #dc2626;   /* Red-600    – error / danger */
+  --info:    #0284c7;   /* Sky-600    – informational  */
 
   /* ── Text ── */
-  --text-primary:   #f0f2ff;
-  --text-secondary: #94a3b8;
-  --text-muted:     #475569;
+  --text-primary:   #0f172a; /* Slate 900 */
+  --text-secondary: #475569; /* Slate 600 */
+  --text-muted:     #94a3b8; /* Slate 400 */
 
   /* ── Borders ── */
-  --border:        rgba(255, 255, 255, 0.07);
-  --border-accent: rgba(37, 99, 235, 0.40);
+  --border:        rgba(0, 0, 0, 0.08);
+  --border-accent: rgba(37, 99, 235, 0.25);
 
   /* ── Shape ── */
   --radius-sm:   6px;
@@ -52,8 +52,8 @@
   --radius-full: 9999px;
 
   /* ── Shadows ── */
-  --shadow-sm:   0 2px 8px  rgba(0, 0, 0, 0.40);
-  --shadow-md:   0 4px 20px rgba(0, 0, 0, 0.50);
+  --shadow-sm:   0 1px 3px  rgba(0, 0, 0, 0.05);
+  --shadow-md:   0 4px 15px rgba(0, 0, 0, 0.06);
   --shadow-glow: 0 0 0 3px  var(--accent-glow);
 
   /* ── Sidebar ── */
@@ -76,9 +76,15 @@ html {
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Tektur', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   line-height: 1.6;
   min-height: 100dvh;
+}
+
+h1, h2, h3, h4, h5, h6, .heading {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 600;
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
@@ -146,7 +152,7 @@ body {
 
 /* ── Glass card ─────────────────────────────────────────────────────────── */
 .glass {
-  background:    rgba(25, 29, 46, 0.70);
+  background:    rgba(255, 255, 255, 0.70);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);

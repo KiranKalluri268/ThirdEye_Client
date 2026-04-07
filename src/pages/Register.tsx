@@ -50,22 +50,24 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6" style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex min-h-screen items-center justify-center px-6 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%)' }}>
       {/* Background decoration */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full opacity-10 pointer-events-none"
+      <div className="absolute top-10 -left-10 w-96 h-96 rounded-full opacity-30 pointer-events-none"
            style={{ background: 'var(--accent)', filter: 'blur(100px)' }} />
+      <div className="absolute bottom-10 right-10 w-[30rem] h-[30rem] rounded-full opacity-20 pointer-events-none"
+           style={{ background: 'var(--info)', filter: 'blur(120px)' }} />
 
-      <div className="glass w-full max-w-md p-8 rounded-2xl fade-in relative z-10">
-        <div className="flex items-center gap-2 mb-6">
+      <div className="glass w-full max-w-md rounded-2xl shadow-xl fade-in relative z-10" style={{ padding: '2.5rem' }}>
+        <div className="flex items-center gap-2" style={{ marginBottom: '1.5rem' }}>
           <Logo size={30} />
         </div>
 
-        <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Create account</h2>
-        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Join ThirdEye to get started</p>
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Create account</h2>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Join ThirdEye to get started</p>
 
         {/* Role selector */}
-        <div className="mb-6">
-          <p className="text-xs mb-2 font-medium" style={{ color: 'var(--text-secondary)' }}>I am a…</p>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>I am a…</p>
           <ToggleButtonGroup
             value={role}
             exclusive
@@ -92,10 +94,10 @@ const Register: React.FC = () => {
 
         {error && <Alert severity="error" sx={{ mb: 2, background: '#2d1b1b' }}>{error}</Alert>}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <TextField label="Full name"  value={name}     onChange={(e) => setName(e.target.value)}     fullWidth sx={inputSx} />
-          <TextField label="Email"      type="email"  value={email}    onChange={(e) => setEmail(e.target.value)}    fullWidth autoComplete="email" sx={inputSx} />
-          <TextField label="Password"   type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth autoComplete="new-password" sx={inputSx} />
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+          <TextField label="Full name"  value={name}     onChange={(e) => setName(e.target.value)}     fullWidth sx={{ ...inputSx, mb: 2 }} />
+          <TextField label="Email"      type="email"  value={email}    onChange={(e) => setEmail(e.target.value)}    fullWidth autoComplete="email" sx={{ ...inputSx, mb: 2 }} />
+          <TextField label="Password"   type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth autoComplete="new-password" sx={{ ...inputSx, mb: 1 }} />
 
           <Button
             type="submit" variant="contained" fullWidth disabled={loading}
@@ -111,7 +113,7 @@ const Register: React.FC = () => {
 
         <p className="text-center text-sm mt-6" style={{ color: 'var(--text-secondary)' }}>
           Already have an account?{' '}
-          <Link to="/login" style={{ color: 'var(--accent-light)', fontWeight: 600 }}>Sign in</Link>
+          <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign in</Link>
         </p>
       </div>
     </div>
