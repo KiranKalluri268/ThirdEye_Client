@@ -49,6 +49,10 @@ interface UseWebRTCReturn {
 const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }: UseWebRTCParams): UseWebRTCReturn => {
   const [peers, setPeers] = useState<Map<string, IPeer>>(new Map());
   const pcsRef            = useRef<Map<string, RTCPeerConnection>>(new Map());
+  // Tracks exactly which remote stream ID represents the screen share
+  const screenStreamIdsRef = useRef<Map<string, string>>(new Map());
+  // Tracks dynamically added senders
+  const screenSendersRef  = useRef<Map<string, RTCRtpSender>>(new Map());
 
   /**
    * @description Creates a new RTCPeerConnection for a given peer, adds
@@ -75,19 +79,38 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
     };
 
     /**
-     * @description When a remote track arrives, attach it to the peer's stream entry
-     *              and update the peers state so the VideoGrid re-renders.
+     * @description Triggered when a new track is added locally. Creates offer.
+     */
+    pc.onnegotiationneeded = async () => {
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('offer', { to: peerId, sdp: pc.localDescription });
+      } catch (err) {
+        console.warn(`[WebRTC] Negotiation failed with ${peerId}`, err);
+      }
+    };
+
+    /**
+     * @description When a remote track arrives, evaluate if it is the known screen stream.
      */
     pc.ontrack = (event) => {
       const remoteStream = event.streams[0];
       setPeers((prev) => {
         const updated = new Map(prev);
         const existing = updated.get(peerId);
+        
+        const knownScreenId = screenStreamIdsRef.current.get(peerId);
+        // If we know the exact screen ID, check it. Otherwise assume the 2nd stream is a screen fallback
+        const isLikelyScreen = (knownScreenId && remoteStream.id === knownScreenId) || 
+                               (existing?.stream && existing.stream.id !== remoteStream.id);
+        
         updated.set(peerId, {
           socketId:    peerId,
           userId:      existing?.userId || '',
           displayName: peerDisplayName,
-          stream:      remoteStream,
+          stream:      isLikelyScreen ? (existing?.stream || null) : remoteStream,
+          screenStream: isLikelyScreen ? remoteStream : (existing?.screenStream || null),
           isMuted:     existing?.isMuted  || false,
           isCamOff:    existing?.isCamOff || false,
           isSpeaking:  false,
@@ -131,14 +154,18 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
     const handlePeers = async (data: { peers: Array<{ socketId: string; userId: string; displayName: string }> }) => {
       for (const peer of data.peers) {
         const pc = createPC(peer.socketId, peer.displayName);
+        // If we are already sharing screen when we join, add it immediately
+        if (screenStream) {
+          const track = screenStream.getVideoTracks()[0];
+          screenSendersRef.current.set(peer.socketId, pc.addTrack(track, screenStream));
+          socket.emit('set-screen-stream', { roomCode, screenStreamId: screenStream.id });
+        }
         setPeers((prev) => new Map(prev).set(peer.socketId, {
           socketId: peer.socketId, userId: peer.userId,
-          displayName: peer.displayName, stream: null,
+          displayName: peer.displayName, stream: null, screenStream: null,
           isMuted: false, isCamOff: false, isSpeaking: false,
         }));
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit('offer', { to: peer.socketId, sdp: offer });
+        // Note: onnegotiationneeded handles the offer creation now!
       }
     };
 
@@ -149,7 +176,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
     const handlePeerJoined = (peer: { socketId: string; userId: string; displayName: string }) => {
       setPeers((prev) => new Map(prev).set(peer.socketId, {
         socketId: peer.socketId, userId: peer.userId,
-        displayName: peer.displayName, stream: null,
+        displayName: peer.displayName, stream: null, screenStream: null,
         isMuted: false, isCamOff: false, isSpeaking: false,
       }));
     };
@@ -160,8 +187,21 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
      */
     const handleOffer = async (data: { from: string; sdp: RTCSessionDescriptionInit }) => {
       const existingPeer = [...peers.values()].find((p) => p.socketId === data.from);
-      const pc = createPC(data.from, existingPeer?.displayName || 'Peer');
-      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      let pc = pcsRef.current.get(data.from);
+      if (!pc) {
+        pc = createPC(data.from, existingPeer?.displayName || 'Peer');
+        if (screenStream) {
+          const track = screenStream.getVideoTracks()[0];
+          screenSendersRef.current.set(data.from, pc.addTrack(track, screenStream));
+          socket.emit('set-screen-stream', { roomCode, screenStreamId: screenStream.id });
+        }
+      }
+      // If signaling state isn't stable, setting remote offer can clash. 
+      if (pc.signalingState !== 'stable') {
+         await Promise.all([pc.setLocalDescription({type: 'rollback'}), pc.setRemoteDescription(new RTCSessionDescription(data.sdp))]);
+      } else {
+         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      }
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit('answer', { to: data.from, sdp: answer });
@@ -210,8 +250,27 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
     /**
      * @description A peer has left. Close and remove their connection.
      */
+    const handleSetScreenStream = ({ socketId, screenStreamId }: { socketId: string, screenStreamId: string }) => {
+      screenStreamIdsRef.current.set(socketId, screenStreamId);
+      
+      // Retroactively correct if tracks arrived before the socket event
+      setPeers((prev) => {
+        const updated = new Map(prev);
+        const peer = updated.get(socketId);
+        if (peer && peer.stream && peer.stream.id === screenStreamId) {
+           updated.set(socketId, {
+             ...peer,
+             screenStream: peer.stream,
+             stream: peer.screenStream // put the previous screen stream into camera if it exists
+           });
+        }
+        return updated;
+      });
+    };
+
     const handlePeerLeft = ({ socketId }: { socketId: string }) => {
       removePC(socketId);
+      screenSendersRef.current.delete(socketId);
     };
 
     socket.on('peers',         handlePeers);
@@ -222,6 +281,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
     socket.on('peer-muted',    handlePeerMuted);
     socket.on('peer-unmuted',  handlePeerUnmuted);
     socket.on('peer-left',     handlePeerLeft);
+    socket.on('set-screen-stream', handleSetScreenStream);
 
     // Join the room
     socket.connect();
@@ -236,33 +296,39 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
       socket.off('peer-muted');
       socket.off('peer-unmuted');
       socket.off('peer-left');
+      socket.off('set-screen-stream');
       socket.emit('leave', { roomCode });
       socket.disconnect();
       pcsRef.current.forEach((pc) => pc.close());
       pcsRef.current.clear();
+      screenSendersRef.current.clear();
     };
-  }, [localStream, roomCode, userId, displayName, createPC, removePC]);
+  }, [localStream, roomCode, userId, displayName, createPC, removePC, screenStream]);
 
   /**
-   * @description Replaces the video track on all active peer connections when
-   *              screen share starts or stops. Uses RTCRtpSender.replaceTrack()
-   *              so no new SDP negotiation is required.
-   * @param screenStream - Active screen share stream, or null when stopped
-   * @param localStream  - Original camera/mic stream to restore on stop
+   * @description Whenever the screenStream toggles, we add or remove the track
+   *              from existing peer connections. This triggers onnegotiationneeded automatically.
    */
   useEffect(() => {
-    pcsRef.current.forEach((pc) => {
-      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-      if (!sender) return;
+    pcsRef.current.forEach((pc, peerId) => {
       if (screenStream) {
-        const screenTrack = screenStream.getVideoTracks()[0];
-        if (screenTrack) sender.replaceTrack(screenTrack);
-      } else if (localStream) {
-        const camTrack = localStream.getVideoTracks()[0];
-        if (camTrack) sender.replaceTrack(camTrack);
+        if (!screenSendersRef.current.has(peerId)) {
+          const track = screenStream.getVideoTracks()[0];
+          screenSendersRef.current.set(peerId, pc.addTrack(track, screenStream));
+        }
+      } else {
+        const sender = screenSendersRef.current.get(peerId);
+        if (sender) {
+          pc.removeTrack(sender);
+          screenSendersRef.current.delete(peerId);
+        }
       }
     });
-  }, [screenStream, localStream]);
+
+    if (screenStream) {
+       socket.emit('set-screen-stream', { roomCode, screenStreamId: screenStream.id });
+    }
+  }, [screenStream, roomCode]);
 
   return { peers };
 };

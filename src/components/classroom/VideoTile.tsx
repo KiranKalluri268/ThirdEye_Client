@@ -9,9 +9,11 @@
  *              - externalVideoRef: forwards the <video> element ref to useEngagement
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import MicOffIcon       from '@mui/icons-material/MicOff';
 import VideocamOffIcon  from '@mui/icons-material/VideocamOff';
+import PushPinIcon      from '@mui/icons-material/PushPin';
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import type { EngagementLabel } from '../../types';
 
 // ── Engagement badge colours ───────────────────────────────────────────────────
@@ -39,8 +41,10 @@ interface VideoTileProps {
   isLocal?:           boolean;
   /** Phase 2: engagement label for the colored badge overlay in the tile top-right */
   engagementLabel?:   EngagementLabel | null;
-  /** Phase 2: forwards the <video> ref to useEngagement for MediaPipe inference */
   externalVideoRef?:  React.RefObject<HTMLVideoElement | null>;
+  isPinned?:          boolean;
+  isScreen?:          boolean;
+  onPinToggle?:       () => void;
 }
 
 /**
@@ -68,35 +72,67 @@ const getInitials = (name: string): string =>
 const VideoTile: React.FC<VideoTileProps> = ({
   stream, displayName, avatarColor, isMuted, isCamOff, isSpeaking,
   isLocal = false, engagementLabel, externalVideoRef,
+  isPinned = false, isScreen = false, onPinToggle
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   /**
    * @description Attaches the MediaStream to the video element and optionally
    *              forwards the ref to externalVideoRef for MediaPipe inference.
    */
   useEffect(() => {
-    if (videoRef.current && stream) {
+    if (videoRef.current && stream && !isCamOff) {
       videoRef.current.srcObject = stream;
     }
     // Forward the video element to externalVideoRef if provided (local tile only)
-    if (externalVideoRef && videoRef.current) {
+    if (externalVideoRef && videoRef.current && !isCamOff) {
       (externalVideoRef as React.MutableRefObject<HTMLVideoElement | null>).current =
         videoRef.current;
     }
-  }, [stream, externalVideoRef]);
+  }, [stream, externalVideoRef, isCamOff]);
 
   return (
     <div
       className="relative rounded-xl overflow-hidden flex items-center justify-center fade-in"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         background:  'var(--bg-tile)',
-        aspectRatio: '16 / 9',
+        height:      '100%',
+        width:       '100%',
+        aspectRatio: isPinned ? 'unset' : '16 / 9',
         border:      isSpeaking ? '2px solid var(--accent)' : '2px solid var(--border)',
         boxShadow:   isSpeaking ? 'var(--shadow-glow)' : 'none',
         transition:  'border-color 0.2s, box-shadow 0.2s',
       }}
     >
+      {/* Pin Toggle Button */}
+      {(isHovered || isPinned) && onPinToggle && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPinToggle(); }}
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            zIndex: 15,
+            background: isPinned ? 'var(--accent)' : 'rgba(0,0,0,0.6)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '50%',
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            backdropFilter: 'blur(4px)',
+            transition: 'background 0.2s',
+          }}
+        >
+          {isPinned ? <PushPinIcon sx={{ fontSize: 18 }} /> : <PushPinOutlinedIcon sx={{ fontSize: 18 }} />}
+        </button>
+      )}
       {/* Phase 2: Engagement badge — top-right corner */}
       {engagementLabel && (
         <div
@@ -147,7 +183,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
             width:     '100%',
             height:    '100%',
             objectFit: 'cover',
-            transform: isLocal ? 'scaleX(-1)' : 'none',
+            transform: isLocal && !isScreen ? 'scaleX(-1)' : 'none',
           }}
         />
       )}

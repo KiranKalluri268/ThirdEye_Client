@@ -16,6 +16,7 @@ import type { IPeer, IUser, EngagementLabel } from '../../types';
 
 interface VideoGridProps {
   localStream:  MediaStream | null;
+  screenStream: MediaStream | null;
   localUser:    IUser;
   isMuted:      boolean;
   isCamOff:     boolean;
@@ -57,11 +58,105 @@ const getColumnCount = (count: number): number => {
  * @param localVideoRef        - Optional ref forwarded to the local video element
  */
 const VideoGrid: React.FC<VideoGridProps> = ({
-  localStream, localUser, isMuted, isCamOff, peers,
+  localStream, screenStream, localUser, isMuted, isCamOff, peers,
   localEngagementLabel, peerEngagementMap, localVideoRef,
 }) => {
-  const totalCount = peers.size + 1; // +1 for local
-  const columns = useMemo(() => getColumnCount(totalCount), [totalCount]);
+  const [pinnedId, setPinnedId] = React.useState<string | null>(null);
+
+  // Flatten all streams (camera + screen)
+  const tiles = useMemo(() => {
+    const arr: any[] = [];
+    
+    // 1. Local Camera
+    arr.push({
+      id: localStream?.id || 'local-cam',
+      stream: localStream,
+      displayName: localUser.name,
+      avatarColor: localUser.avatarColor,
+      isMuted, isCamOff, isSpeaking: false, isLocal: true,
+      engagementLabel: localEngagementLabel ?? null,
+      externalVideoRef: localVideoRef
+    });
+
+    // 2. Local Screen
+    if (screenStream) {
+      arr.push({
+        id: screenStream.id || 'local-screen',
+        stream: screenStream,
+        displayName: `${localUser.name}'s Screen`,
+        avatarColor: localUser.avatarColor,
+        isMuted: true, isCamOff: false, isSpeaking: false, isLocal: true, isScreen: true
+      });
+    }
+
+    // 3. Remote Peers
+    peers.forEach((peer) => {
+      arr.push({
+        id: peer.stream?.id || `${peer.socketId}-cam`,
+        stream: peer.stream,
+        displayName: peer.displayName,
+        avatarColor: '#6c63ff',
+        isMuted: peer.isMuted, isCamOff: peer.isCamOff, isSpeaking: peer.isSpeaking, isLocal: false,
+        engagementLabel: peerEngagementMap?.get(peer.socketId) ?? null,
+      });
+
+      if (peer.screenStream) {
+        arr.push({
+          id: peer.screenStream.id || `${peer.socketId}-screen`,
+          stream: peer.screenStream,
+          displayName: `${peer.displayName}'s Screen`,
+          avatarColor: '#6c63ff',
+          isMuted: true, isCamOff: false, isSpeaking: false, isLocal: false, isScreen: true
+        });
+      }
+    });
+
+    return arr;
+  }, [localStream, screenStream, localUser, isMuted, isCamOff, localEngagementLabel, localVideoRef, peers, peerEngagementMap]);
+
+  // Auto-pin newest screen if nothing is pinned
+  React.useEffect(() => {
+    const screens = tiles.filter(t => t.isScreen);
+    if (screens.length > 0 && !pinnedId) {
+      // Auto pin the last connected screen
+      setPinnedId(screens[screens.length - 1].id);
+    }
+    // Clear pin if the pinned stream no longer exists
+    if (pinnedId && !tiles.find(t => t.id === pinnedId)) {
+      setPinnedId(null);
+    }
+  }, [tiles, pinnedId]);
+
+  const columns = useMemo(() => getColumnCount(tiles.length), [tiles.length]);
+
+  if (pinnedId) {
+    const pinnedTile = tiles.find(t => t.id === pinnedId);
+    const unpinnedTiles = tiles.filter(t => t.id !== pinnedId);
+
+    return (
+      <div className="w-full h-full p-3 flex gap-3 overflow-hidden">
+        {/* Main Pinned View (75%) */}
+        {pinnedTile && (
+          <div style={{ flex: 3, maxWidth: '75%', height: '100%', minHeight: 0 }}>
+             <VideoTile 
+                key={pinnedTile.id} {...pinnedTile} 
+                isPinned={true} 
+                onPinToggle={() => setPinnedId(null)} 
+             />
+          </div>
+        )}
+        
+        {/* Side Strip (25%) */}
+        <div style={{ flex: 1, minWidth: '20%', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
+           {unpinnedTiles.map(t => (
+               <div key={t.id} style={{ flexShrink: 0, minHeight: '22%' }}>
+                  <VideoTile {...t} isPinned={false} onPinToggle={() => setPinnedId(t.id)} />
+               </div>
+           ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -73,31 +168,12 @@ const VideoGrid: React.FC<VideoGridProps> = ({
         alignContent:        'start',
       }}
     >
-      {/* Local tile — always first */}
-      <VideoTile
-        stream={localStream}
-        displayName={localUser.name}
-        avatarColor={localUser.avatarColor}
-        isMuted={isMuted}
-        isCamOff={isCamOff}
-        isSpeaking={false}
-        isLocal={true}
-        engagementLabel={localEngagementLabel ?? null}
-        externalVideoRef={localVideoRef}
-      />
-
-      {/* Remote peer tiles */}
-      {[...peers.values()].map((peer) => (
-        <VideoTile
-          key={peer.socketId}
-          stream={peer.stream}
-          displayName={peer.displayName}
-          avatarColor="#6c63ff"
-          isMuted={peer.isMuted}
-          isCamOff={peer.isCamOff}
-          isSpeaking={peer.isSpeaking}
-          isLocal={false}
-          engagementLabel={peerEngagementMap?.get(peer.socketId) ?? null}
+      {tiles.map((t) => (
+        <VideoTile 
+          key={t.id} 
+          {...t} 
+          isPinned={false} 
+          onPinToggle={() => setPinnedId(t.id)} 
         />
       ))}
     </div>

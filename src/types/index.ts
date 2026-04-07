@@ -100,13 +100,14 @@ export interface IEngagementDataPoint {
 
 /** Represents a remote participant in the video call */
 export interface IPeer {
-  socketId:    string;
-  userId:      string;
-  displayName: string;
-  stream:      MediaStream | null;
-  isMuted:     boolean;
-  isCamOff:    boolean;
-  isSpeaking:  boolean;
+  socketId:     string;
+  userId:       string;
+  displayName:  string;
+  stream:       MediaStream | null;
+  screenStream: MediaStream | null;
+  isMuted:      boolean;
+  isCamOff:     boolean;
+  isSpeaking:   boolean;
 }
 
 // ── API Response wrappers ─────────────────────────────────────────────────────

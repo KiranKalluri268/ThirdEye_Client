@@ -294,6 +294,7 @@ const Classroom: React.FC = () => {
         <div className="flex-1 overflow-auto">
           <VideoGrid
             localStream={localStream}
+            screenStream={screenStream}
             localUser={user}
             isMuted={isMuted}
             isCamOff={isCamOff}
