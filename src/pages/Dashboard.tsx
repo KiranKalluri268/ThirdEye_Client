@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@mui/material';
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import AddIcon       from '@mui/icons-material/Add';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
 
@@ -44,13 +44,37 @@ const Dashboard: React.FC = () => {
   const navigate                = useNavigate();
   const [sessions, setSessions] = useState<ISession[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [activePrompt, setActivePrompt] = useState<ISession | null>(null);
 
   useEffect(() => {
     api.get<{ success: boolean; sessions: ISession[] }>('/sessions')
-      .then((r) => setSessions(r.data.sessions.slice(0, 5)))
+      .then((r) => {
+        const allSessions = r.data.sessions;
+        setSessions(allSessions.slice(0, 5));
+        
+        // Find if there's any ongoing session the user belongs to
+        const ongoing = allSessions.find((s) => {
+          if (s.status !== 'active') return false;
+          if (user?.role === 'instructor' || user?.role === 'admin') {
+            return s.instructor?._id === user._id;
+          }
+          return s.enrolledStudents?.some((st) => st._id === user?._id);
+        });
+
+        if (ongoing && !sessionStorage.getItem(`dismissRejoin_${ongoing._id}`)) {
+          setActivePrompt(ongoing);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
+
+  const handleDismissPrompt = () => {
+    if (activePrompt) {
+      sessionStorage.setItem(`dismissRejoin_${activePrompt._id}`, 'true');
+      setActivePrompt(null);
+    }
+  };
 
   const isInstructor   = user?.role === 'instructor' || user?.role === 'admin';
   const activeSessions = sessions.filter((s) => s.status === 'active');
@@ -187,6 +211,47 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Active Session Rejoin Prompt */}
+      <Dialog
+        open={!!activePrompt}
+        onClose={handleDismissPrompt}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '20px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', fontWeight: 700 }}>
+          Ongoing Session Detected
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            You have an ongoing session: <strong style={{ color: 'var(--text-primary)' }}>{activePrompt?.title}</strong>. 
+            Would you like to rejoin the classroom now?
+          </p>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={handleDismissPrompt} sx={{ color: 'var(--text-secondary)' }}>
+            Dismiss
+          </Button>
+          <Button
+            onClick={() => activePrompt?.roomCode && navigate(`/classroom/${activePrompt.roomCode}`)}
+            variant="contained"
+            startIcon={<VideoCallIcon />}
+            sx={{
+              background: 'var(--accent)', borderRadius: '10px', fontWeight: 700,
+              '&:hover': { background: 'var(--accent-dark)' },
+            }}
+          >
+            Join Again
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AppShell>
   );
 };
