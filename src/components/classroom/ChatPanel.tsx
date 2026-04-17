@@ -87,7 +87,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomCode, userId, userName, onClo
       style={{ background: 'var(--bg-surface)', borderLeft: '1px solid var(--border)', width: 320 }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
         <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>In-call messages</span>
         <IconButton size="small" onClick={onClose} sx={{ color: 'var(--text-secondary)' }}>
           <CloseIcon fontSize="small" />
@@ -95,9 +95,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomCode, userId, userName, onClo
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-3" style={{ padding: '12px 16px' }}>
         {messages.length === 0 && (
-          <p className="text-center text-sm mt-8" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-center text-sm" style={{ marginTop: '2rem', color: 'var(--text-muted)' }}>
             No messages yet — say hello 👋
           </p>
         )}
@@ -111,8 +111,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomCode, userId, userName, onClo
                 </span>
               )}
               <div
-                className="px-3 py-2 rounded-2xl text-sm max-w-[85%] break-words"
+                className="rounded-2xl text-sm max-w-[85%] break-words"
                 style={{
+                  padding:      '8px 12px',
                   background:   isOwn ? 'var(--accent)' : 'var(--bg-elevated)',
                   color:        'var(--text-primary)',
                   borderRadius: isOwn ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
@@ -130,7 +131,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ roomCode, userId, userName, onClo
       </div>
 
       {/* Input */}
-      <div className="px-3 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+      <div style={{ padding: '12px', borderTop: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
           <TextField
             fullWidth

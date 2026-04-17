@@ -223,9 +223,6 @@ const Classroom: React.FC = () => {
     navigate('/dashboard');
   }, [roomCode, stopMedia, navigate]);
 
-  /**
-   * @description Toggles the local user's hand raise state and emits the corresponding socket event.
-   */
   const handleToggleHandRaise = useCallback((): void => {
     setIsHandRaised((prev) => {
       const nextState = !prev;
@@ -233,6 +230,28 @@ const Classroom: React.FC = () => {
       return nextState;
     });
   }, [roomCode]);
+
+  /**
+   * @description Toggles the chat panel. On mobile, ensures participants panel is closed.
+   */
+  const handleToggleChat = useCallback(() => {
+    setIsChatOpen((prev) => {
+      const next = !prev;
+      if (next && window.innerWidth < 768) setIsPeopleOpen(false);
+      return next;
+    });
+  }, []);
+
+  /**
+   * @description Toggles the participants panel. On mobile, ensures chat panel is closed.
+   */
+  const handleTogglePeople = useCallback(() => {
+    setIsPeopleOpen((prev) => {
+      const next = !prev;
+      if (next && window.innerWidth < 768) setIsChatOpen(false);
+      return next;
+    });
+  }, []);
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
@@ -257,19 +276,12 @@ const Classroom: React.FC = () => {
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div
-        className="flex items-center justify-between px-5 py-2 shrink-0"
-        style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }}
+        className="flex items-center justify-between py-2 shrink-0"
+        style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', paddingLeft: 12, paddingRight: 12 }}
       >
-        <div className="flex items-center gap-3">
-          {/* ThirdEye logo mark */}
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: 'var(--accent)', color: '#fff' }}
-          >
-            TE
-          </div>
+        <div className="flex items-center gap-3" style={{ minWidth: 0 }}>
           <span
-            className="font-semibold text-sm truncate max-w-xs"
+            className="font-semibold text-sm truncate"
             style={{ color: 'var(--text-primary)' }}
           >
             {session.title}
@@ -283,7 +295,7 @@ const Classroom: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" style={{ flexShrink: 0 }}>
           <SessionTimer startTime={session.startTime} />
           <div
             className="hidden sm:block text-xs px-2 py-0.5 rounded-md"
@@ -303,8 +315,8 @@ const Classroom: React.FC = () => {
       {/* ── Main content area ────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Video grid */}
-        <div className="flex-1 overflow-auto">
+        {/* Video grid — fills all remaining height between top bar and control bar */}
+        <div className="flex-1 overflow-hidden min-h-0">
           <VideoGrid
             localStream={localStream}
             screenStream={screenStream}
@@ -316,6 +328,7 @@ const Classroom: React.FC = () => {
             localHandRaised={isHandRaised}
             peerEngagementMap={isInstructor ? peerEngagementMap : new Map()}
             localVideoRef={localVideoRef as React.RefObject<HTMLVideoElement | null>}
+            instructorId={session.instructor._id}
           />
         </div>
 
@@ -359,8 +372,8 @@ const Classroom: React.FC = () => {
         onToggleAudio={toggleAudio}
         onToggleVideo={toggleVideo}
         onToggleScreen={isSharingScreen ? stopScreenShare : startScreenShare}
-        onToggleChat={() => setIsChatOpen((v) => !v)}
-        onTogglePeople={() => setIsPeopleOpen((v) => !v)}
+        onToggleChat={handleToggleChat}
+        onTogglePeople={handleTogglePeople}
         onToggleHandRaise={handleToggleHandRaise}
         onLeave={handleLeave}
         onEndSession={handleEndSession}

@@ -27,8 +27,10 @@ interface VideoGridProps {
   peerEngagementMap?:    Map<string, EngagementLabel>;
   /** Phase 2: local hand raised state */
   localHandRaised:       boolean;
-  /** Phase 2: forwarded to the local VideoTile so MediaPipe can access the <video> element */
+  /** Phase 2: local video ref for MediaPipe */
   localVideoRef?:        React.RefObject<HTMLVideoElement | null>;
+  /** ID of the session instructor to highlight their name */
+  instructorId?:         string;
 }
 
 /**
@@ -61,7 +63,7 @@ const getColumnCount = (count: number): number => {
  */
 const VideoGrid: React.FC<VideoGridProps> = ({
   localStream, screenStream, localUser, isMuted, isCamOff, peers,
-  localEngagementLabel, peerEngagementMap, localHandRaised, localVideoRef,
+  localEngagementLabel, peerEngagementMap, localHandRaised, localVideoRef, instructorId
 }) => {
   const [pinnedId, setPinnedId] = React.useState<string | null>(null);
 
@@ -94,10 +96,15 @@ const VideoGrid: React.FC<VideoGridProps> = ({
 
     // 3. Remote Peers
     peers.forEach((peer) => {
+      let finalName = peer.displayName || 'Student';
+      if (peer.userId === instructorId) {
+        finalName += ' (Instructor)';
+      }
+
       arr.push({
         id: peer.stream?.id || `${peer.socketId}-cam`,
         stream: peer.stream,
-        displayName: peer.displayName,
+        displayName: finalName,
         avatarColor: '#6c63ff',
         isMuted: peer.isMuted, isCamOff: peer.isCamOff, isSpeaking: peer.isSpeaking, isLocal: false,
         engagementLabel: peerEngagementMap?.get(peer.socketId) ?? null,
@@ -164,12 +171,13 @@ const VideoGrid: React.FC<VideoGridProps> = ({
 
   return (
     <div
-      className="w-full h-full p-3"
+      className="w-full h-full"
       style={{
         display:             'grid',
         gridTemplateColumns: `repeat(${columns}, 1fr)`,
-        gap:                 '8px',
-        alignContent:        'start',
+        gridAutoRows:        '1fr',
+        gap:                 '5px',
+        padding:             '5px',
       }}
     >
       {tiles.map((t) => (

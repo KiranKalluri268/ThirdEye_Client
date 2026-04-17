@@ -252,14 +252,18 @@ const EngagementDashboard: React.FC<EngagementDashboardProps> = ({
 
   return (
     <div
+      className="scrollbar-hide"
       style={{
-        background:  'var(--bg-surface)',
-        borderTop:   '1px solid var(--border)',
-        padding:     '10px 20px',
-        flexShrink:  0,
-        display:     'flex',
-        alignItems:  'center',
-        gap:         20,
+        background:      'var(--bg-surface)',
+        borderTop:       '1px solid var(--border)',
+        padding:         '10px 20px',
+        flexShrink:      0,
+        display:         'flex',
+        alignItems:      'center',
+        justifyContent:  'flex-start',
+        gap:             20,
+        overflowX:       'auto',
+        whiteSpace:      'nowrap',
       }}
     >
       {/* Left: label counts */}

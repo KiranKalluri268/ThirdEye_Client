@@ -45,8 +45,8 @@ const ParticipantRow: React.FC<{
   badgeLabel?: string;
 }> = ({ name, color, isMuted = false, isCamOff = false, badgeLabel }) => (
   <div
-    className="flex items-center gap-3 px-4 py-2 rounded-lg"
-    style={{ transition: 'background 0.15s' }}
+    className="flex items-center gap-3 rounded-lg"
+    style={{ padding: '8px 16px', transition: 'background 0.15s' }}
     onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-tile)')}
     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
   >
@@ -112,8 +112,8 @@ const PeoplePanel: React.FC<PeoplePanelProps> = ({ peers, localUser, onClose }) 
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-4 py-3 shrink-0"
-        style={{ borderBottom: '1px solid var(--border)' }}
+        className="flex items-center justify-between shrink-0"
+        style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}
       >
         <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
           Participants ({totalCount})
@@ -124,7 +124,7 @@ const PeoplePanel: React.FC<PeoplePanelProps> = ({ peers, localUser, onClose }) 
       </div>
 
       {/* Participant list */}
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto" style={{ paddingTop: '8px', paddingBottom: '8px' }}>
         {/* Local user — always first */}
         <ParticipantRow
           name={localUser.name}

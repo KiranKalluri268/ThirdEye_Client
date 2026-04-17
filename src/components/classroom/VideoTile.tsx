@@ -103,7 +103,7 @@ const VideoTile: React.FC<VideoTileProps> = ({
         background:  'var(--bg-tile)',
         height:      '100%',
         width:       '100%',
-        aspectRatio: isPinned ? 'unset' : '16 / 9',
+        minHeight:   0,
         border:      isSpeaking ? '2px solid var(--accent)' : '2px solid var(--border)',
         boxShadow:   isSpeaking ? 'var(--shadow-glow)' : 'none',
         transition:  'border-color 0.2s, box-shadow 0.2s',
@@ -207,18 +207,18 @@ const VideoTile: React.FC<VideoTileProps> = ({
 
       {/* Bottom name tag */}
       <div
-        className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-2 py-1"
-        style={{ background: 'var(--bg-overlay)' }}
+        className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-2 px-2"
+        style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', paddingTop: 5, paddingBottom: 5 }}
       >
-        <span className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)', maxWidth: '70%' }}>
+        <span className="text-xs font-medium truncate" style={{ color: '#fff' }}>
           {displayName}{isLocal ? ' (You)' : ''}
         </span>
 
         {/* Status icons */}
-        <div className="flex gap-1" style={{ alignItems: 'center' }}>
-          {isHandRaised && <PanToolIcon sx={{ fontSize: 14, color: 'var(--accent)', marginRight: '4px' }} />}
-          {isMuted   && <MicOffIcon    sx={{ fontSize: 14, color: 'var(--danger)' }} />}
-          {isCamOff  && <VideocamOffIcon sx={{ fontSize: 14, color: 'var(--danger)' }} />}
+        <div className="flex gap-1 shrink-0" style={{ alignItems: 'center' }}>
+          {isHandRaised && <PanToolIcon sx={{ fontSize: 14, color: 'var(--accent)' }} />}
+          {isMuted   && <MicOffIcon    sx={{ fontSize: 14, color: '#ff6b81' }} />}
+          {isCamOff  && <VideocamOffIcon sx={{ fontSize: 14, color: '#ff6b81' }} />}
         </div>
       </div>
     </div>
