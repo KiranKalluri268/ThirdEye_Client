@@ -37,14 +37,29 @@ const EAR_OPEN   = 0.20; // both eyes clearly open
 const EAR_HALF   = 0.14; // drowsy / half-closed
 const EAR_CLOSED = 0.10; // eyes fully closed
 
-// ── Score → label thresholds (must match inference.py exactly) ────────────────
-
-const LABEL_MAP: EngagementLabel[] = ['very_low', 'low', 'high', 'very_high'];
 
 // ── Smoothing history ─────────────────────────────────────────────────────────
 
 const HISTORY_LEN = 3;
-let scoreHistory: number[] = [];
+
+/**
+ * @description Per-component rolling buffers (3 frames each).
+ *              Smoothing is applied to each component independently before
+ *              the AND-gate rules are evaluated, avoiding label jitter from
+ *              single noisy frames. Composite score is kept for display only.
+ */
+const eyeBuf:  number[] = [];
+const gazeBuf: number[] = [];
+const headBuf: number[] = [];
+const centBuf: number[] = [];
+const sizeBuf: number[] = [];
+
+/** Pushes a value into a rolling buffer of length HISTORY_LEN. */
+const pushBuf = (buf: number[], val: number): number => {
+  buf.push(val);
+  if (buf.length > HISTORY_LEN) buf.shift();
+  return buf.reduce((a, b) => a + b, 0) / buf.length;
+};
 
 // ── Landmark type ─────────────────────────────────────────────────────────────
 
@@ -116,6 +131,12 @@ interface RawEngagement {
   numEyes:      number;
   faceCentered: boolean;
   earAvg:       number;
+  // Individual component scores for debug overlay
+  eyeScore:  number;
+  gazeScore: number;
+  headScore: number;
+  centScore: number;
+  sizeScore: number;
 }
 
 /**
@@ -144,7 +165,8 @@ const computeEngagement = (
 
   if (earAvg < EAR_CLOSED) {
     // Eyes fully closed — hard Very Low gate
-    return { score: 0.05, maxScore: 0.20, numEyes: 0, faceCentered: true, earAvg };
+    return { score: 0.05, maxScore: 0.20, numEyes: 0, faceCentered: true, earAvg,
+             eyeScore: 0, gazeScore: 0.55, headScore: 0.7, centScore: 0.5, sizeScore: 0.4 };
   } else if (earAvg < EAR_HALF) {
     eyeScore = Math.min((earAvg - EAR_CLOSED) / (EAR_HALF - EAR_CLOSED), 0.35);
     maxScore = 0.40;
@@ -208,41 +230,90 @@ const computeEngagement = (
     numEyes,
     faceCentered,
     earAvg,
+    eyeScore:  parseFloat(eyeScore.toFixed(3)),
+    gazeScore: parseFloat(gazeScore.toFixed(3)),
+    headScore: parseFloat(headScore.toFixed(3)),
+    centScore: parseFloat(centScore.toFixed(3)),
+    sizeScore: parseFloat(sizeScore.toFixed(3)),
   };
 };
 
-// ── Smoothing and Label ───────────────────────────────────────────────────────
+// ── AND-gate Rule Engine ─────────────────────────────────────────────────────
 
 /**
- * @description Applies 3-frame rolling average to the raw score and maps it
- *              to an engagement label with representative confidence probabilities.
- *              Matches inference.py smooth_label() exactly.
- * @param rawScore - Raw engagement score from computeEngagement (0.0 – 1.0)
- * @returns {{ label, confidence, score }} Smoothed prediction
+ * @description Classifies engagement using top-down AND-gate rules applied to
+ *              3-frame rolling averages of each component score.
+ *
+ *              Rules (evaluated in order — first match wins):
+ *
+ *              Very High : eye > 0.70 && gaze > 0.70 && head > 0.50
+ *                          && cent > 0.70 && size > 0.30
+ *              High      : eye > 0.40 && head > 0.30 && cent > 0.30
+ *              Low       : eye > 0.05 && head > 0.10 && cent > 0.05
+ *              Very Low  : catch-all (face missing, eyes closed, looking away)
+ *
+ *              The composite score is still computed from the weighted formula
+ *              and returned for display in the debug overlay bar — it does NOT
+ *              determine the label anymore.
+ *
+ * @param eye  - Rolled eyeScore  (0–1)
+ * @param gaze - Rolled gazeScore (0–1)
+ * @param head - Rolled headScore (0–1)
+ * @param cent - Rolled centScore (0–1)
+ * @param size - Rolled sizeScore (0–1)
+ * @param compositeScore - Weighted composite (for debug bar display only)
+ * @returns {{ label, confidence, score }}
  */
-const smoothAndLabel = (rawScore: number): { label: EngagementLabel; confidence: number; score: number } => {
-  scoreHistory.push(rawScore);
-  if (scoreHistory.length > HISTORY_LEN) scoreHistory.shift();
+const ruleBasedLabel = (
+  eye:  number,
+  gaze: number,
+  head: number,
+  cent: number,
+  size: number,
+  compositeScore: number,
+): { label: EngagementLabel; confidence: number; score: number } => {
+  let label:      EngagementLabel;
+  let confidence: number;
 
-  const score = scoreHistory.reduce((a, b) => a + b, 0) / scoreHistory.length;
+  if (eye > 0.80 && gaze > 0.70 && head > 0.50 && cent > 0.70 && size > 0.30) {
+    label      = 'very_high';
+    // Confidence = how far all conditions exceed their thresholds (min margin)
+    confidence = parseFloat(Math.min(
+      (eye  - 0.80) / 0.30,
+      (gaze - 0.70) / 0.30,
+      (head - 0.50) / 0.50,
+      (cent - 0.70) / 0.30,
+      (size - 0.30) / 0.70,
+    ).toFixed(4));
+    confidence = Math.min(0.95, 0.70 + confidence * 0.25);
 
-  let labelIdx: number;
-  let baseProbs: [number, number, number, number];
+  } else if (eye > 0.50 && head > 0.30 && cent > 0.30) {
+    label      = 'high';
+    confidence = parseFloat(Math.min(
+      (eye  - 0.50) / 0.30,
+      (head - 0.30) / 0.20,
+      (cent - 0.30) / 0.40,
+    ).toFixed(4));
+    confidence = Math.min(0.85, 0.60 + confidence * 0.25);
 
-  if      (score < 0.20) { labelIdx = 0; baseProbs = [0.75, 0.17, 0.06, 0.02]; }
-  else if (score < 0.42) { labelIdx = 1; baseProbs = [0.07, 0.68, 0.20, 0.05]; }
-  else if (score < 0.65) { labelIdx = 2; baseProbs = [0.04, 0.11, 0.70, 0.15]; }
-  else                   { labelIdx = 3; baseProbs = [0.02, 0.05, 0.18, 0.75]; }
+  } else if (eye > 0.05 && head > 0.10 && cent > 0.05) {
+    label      = 'low';
+    confidence = parseFloat(Math.min(
+      (eye  - 0.05) / 0.35,
+      (head - 0.10) / 0.20,
+      (cent - 0.05) / 0.25,
+    ).toFixed(4));
+    confidence = Math.min(0.80, 0.55 + confidence * 0.25);
 
-  // Small noise for natural probability variation (matches Python implementation)
-  const probs  = baseProbs.map((p) => Math.max(0, p + (Math.random() - 0.5) * 0.03));
-  const sum    = probs.reduce((a, b) => a + b, 0);
-  const normed = probs.map((p) => p / sum);
+  } else {
+    label      = 'very_low';
+    confidence = 0.90;
+  }
 
   return {
-    label:      LABEL_MAP[labelIdx],
-    confidence: parseFloat(Math.max(...normed).toFixed(4)),
-    score:      parseFloat(score.toFixed(3)),
+    label,
+    confidence,
+    score: parseFloat(compositeScore.toFixed(3)),
   };
 };
 
@@ -267,10 +338,14 @@ export const predictFromLandmarks = (
   videoWidth:  number = 640,
   videoHeight: number = 480,
 ): IEngagementResult => {
-  // No face detected
+  // ── No face detected ──────────────────────────────────────────────────────
   if (!landmarks || landmarks.length === 0) {
-    scoreHistory.push(0.05);
-    if (scoreHistory.length > HISTORY_LEN) scoreHistory.shift();
+    // Push zeros into all buffers so they drain toward 0 across frames
+    pushBuf(eyeBuf,  0);
+    pushBuf(gazeBuf, 0);
+    pushBuf(headBuf, 0);
+    pushBuf(centBuf, 0);
+    pushBuf(sizeBuf, 0);
     return {
       label:      'very_low',
       confidence: 0.90,
@@ -279,8 +354,24 @@ export const predictFromLandmarks = (
     };
   }
 
+  // ── Compute component scores ───────────────────────────────────────────────
   const eng = computeEngagement(landmarks, videoWidth, videoHeight);
-  const out = smoothAndLabel(eng.score);
+
+  // Roll each component score independently
+  const rEye  = pushBuf(eyeBuf,  eng.eyeScore);
+  const rGaze = pushBuf(gazeBuf, eng.gazeScore);
+  const rHead = pushBuf(headBuf, eng.headScore);
+  const rCent = pushBuf(centBuf, eng.centScore);
+  const rSize = pushBuf(sizeBuf, eng.sizeScore);
+
+  // Composite score (weighted formula) — used for debug bar display only
+  const composite = Math.min(
+    eng.maxScore,
+    0.40 * rEye + 0.22 * rGaze + 0.15 * rHead + 0.13 * rCent + 0.07 * rSize + 0.03,
+  );
+
+  // Apply AND-gate rules to rolled averages
+  const out = ruleBasedLabel(rEye, rGaze, rHead, rCent, rSize, composite);
 
   return {
     label:      out.label,
@@ -291,16 +382,25 @@ export const predictFromLandmarks = (
       eyesDetected:  eng.numEyes,
       faceCentered:  eng.faceCentered,
       earAvg:        parseFloat(eng.earAvg.toFixed(3)),
+      eyeScore:      eng.eyeScore,
+      gazeScore:     eng.gazeScore,
+      headScore:     eng.headScore,
+      centScore:     eng.centScore,
+      sizeScore:     eng.sizeScore,
     },
   };
 };
 
 /**
- * @description Resets the 3-frame smoothing history.
+ * @description Resets all 5 per-component smoothing buffers.
  *              Call this when a new session starts so stale state from a
  *              previous session does not bleed into the first few predictions.
  * @returns {void}
  */
 export const resetHistory = (): void => {
-  scoreHistory = [];
+  eyeBuf.length  = 0;
+  gazeBuf.length = 0;
+  headBuf.length = 0;
+  centBuf.length = 0;
+  sizeBuf.length = 0;
 };

@@ -35,6 +35,11 @@ import EngagementChart, {
 import StudentTable, {
   type StudentSummary,
 } from '../components/analytics/StudentTable';
+import KPICards from '../components/analytics/KPICards';
+
+const EngagementHeatmap = React.lazy(
+  () => import('../components/analytics/EngagementHeatmap')
+);
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SessionInfo {
@@ -100,6 +105,46 @@ const SessionAnalytics: React.FC = () => {
   const [fetchingStudent,   setFetchingStudent]    = useState<string | null>(null);
 
   const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
+
+  // ── CSV export ─────────────────────────────────────────────────────────────
+
+  /**
+   * @description Generates and downloads a CSV file of per-student engagement stats.
+   *              Pure client-side — no new API call. Shown only to instructors.
+   * @returns {void}
+   */
+  const handleExportCSV = useCallback((): void => {
+    if (!analytics || analytics.students.length === 0) return;
+
+    const { sessionInfo, students } = analytics;
+
+    const headers = [
+      'Student', 'Avg Score', 'Label',
+      'Very High', 'High', 'Low', 'Very Low', 'Total Records',
+    ];
+
+    const rows = students.map((s) => [
+      s.name,
+      s.avgScore.toFixed(3),
+      s.avgLabel,
+      s.distribution.very_high,
+      s.distribution.high,
+      s.distribution.low,
+      s.distribution.very_low,
+      s.recordCount,
+    ]);
+
+    const csv  = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${sessionInfo.title.replace(/\s+/g, '_')}_engagement.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [analytics]);
 
   // ── Load analytics on mount ────────────────────────────────────────────────
 
@@ -299,6 +344,15 @@ const SessionAnalytics: React.FC = () => {
           </div>
         </div>
 
+        {/* ── KPI Cards ──────────────────────────────────────────────────────── */}
+        {timeSeries.length > 0 && (
+          <KPICards
+            timeSeries={timeSeries}
+            students={students}
+            isInstructor={isInstructor}
+          />
+        )}
+
         {/* ── Chart section ────────────────────────────────────────────────── */}
         <div
           className="glass rounded-2xl fade-in"
@@ -348,6 +402,32 @@ const SessionAnalytics: React.FC = () => {
           )}
         </div>
 
+        {/* ── Heatmap section (instructor only) ────────────────────────── */}
+        {isInstructor && students.length > 0 && (
+          <div
+            className="glass rounded-2xl fade-in"
+            style={{ border: '1px solid var(--border)', padding: '1.5rem', marginBottom: '1.5rem' }}
+          >
+            <div style={{ marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Engagement Heatmap
+              </h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                Student × minute — hover a cell for details
+              </p>
+            </div>
+            <React.Suspense
+              fallback={
+                <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading heatmap…</span>
+                </div>
+              }
+            >
+              <EngagementHeatmap sessionId={sessionId!} />
+            </React.Suspense>
+          </div>
+        )}
+
         {/* ── Student table (instructor only) ──────────────────────────────── */}
         {isInstructor && students.length > 0 && (
           <div
@@ -365,22 +445,47 @@ const SessionAnalytics: React.FC = () => {
                   Click a row to overlay the student's line on the chart
                 </p>
               </div>
-              {selectedStudents.size > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {selectedStudents.size > 0 && (
+                  <button
+                    onClick={() => setSelectedStudents(new Set())}
+                    style={{
+                      fontSize:   12,
+                      color:      'var(--text-muted)',
+                      background: 'none',
+                      border:     '1px solid var(--border)',
+                      borderRadius: 8,
+                      padding:    '4px 10px',
+                      cursor:     'pointer',
+                    }}
+                  >
+                    Clear selection
+                  </button>
+                )}
                 <button
-                  onClick={() => setSelectedStudents(new Set())}
+                  id="btn-export-csv"
+                  onClick={handleExportCSV}
                   style={{
-                    fontSize:   12,
-                    color:      'var(--text-muted)',
-                    background: 'none',
-                    border:     '1px solid var(--border)',
+                    fontSize:     12,
+                    color:        'var(--accent)',
+                    background:   'none',
+                    border:       '1px solid var(--accent)',
                     borderRadius: 8,
-                    padding:    '4px 10px',
-                    cursor:     'pointer',
+                    padding:      '4px 10px',
+                    cursor:       'pointer',
+                    fontWeight:   600,
+                    transition:   'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'rgba(124,111,255,0.12)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'none';
                   }}
                 >
-                  Clear selection
+                  &#8659; Export CSV
                 </button>
-              )}
+              </div>
             </div>
 
             <StudentTable

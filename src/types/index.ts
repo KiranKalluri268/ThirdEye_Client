@@ -74,6 +74,12 @@ export interface IEngagementResult {
     eyesDetected:  number; // 0, 1, or 2
     faceCentered:  boolean;
     earAvg:        number;
+    // Component scores exposed for debug overlay (optional — only set when face detected)
+    eyeScore?:  number; // contribution from EAR  (weight 0.40)
+    gazeScore?: number; // contribution from iris  (weight 0.22)
+    headScore?: number; // contribution from yaw   (weight 0.15)
+    centScore?: number; // contribution from center (weight 0.13)
+    sizeScore?: number; // contribution from size   (weight 0.07)
   };
 }
 

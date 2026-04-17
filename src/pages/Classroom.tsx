@@ -29,6 +29,7 @@ import ChatPanel           from '../components/classroom/ChatPanel';
 import PeoplePanel         from '../components/classroom/PeoplePanel';
 import SessionTimer        from '../components/classroom/SessionTimer';
 import EngagementDashboard from '../components/classroom/EngagementDashboard';
+import DebugOverlay        from '../components/classroom/DebugOverlay';
 
 import type { IRoom, ISession, EngagementLabel, IPeerEngagementEvent } from '../types';
 
@@ -364,6 +365,14 @@ const Classroom: React.FC = () => {
         onLeave={handleLeave}
         onEndSession={handleEndSession}
       />
+
+      {/* ── Phase 2.5: Student debug overlay (` key to toggle) ────────────── */}
+      {!isInstructor && (
+        <DebugOverlay
+          engagementResult={engagementResult}
+          isInferring={isInferring}
+        />
+      )}
 
       {/* ── Toast notification ────────────────────────────────────────────────── */}
       <Snackbar
