@@ -31,6 +31,8 @@ interface UseWebRTCParams {
   localStream:  MediaStream | null;
   /** When set, replaces the video track on all peer connections with the screen track */
   screenStream: MediaStream | null;
+  /** Called when the instructor force-mutes this client */
+  onForceMute?: (kind: 'audio' | 'video') => void;
 }
 
 interface UseWebRTCReturn {
@@ -46,7 +48,7 @@ interface UseWebRTCReturn {
  * @param localStream - Local camera/mic stream to send to peers
  * @returns {Map<string, IPeer>} Live map of connected peers
  */
-const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }: UseWebRTCParams): UseWebRTCReturn => {
+const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, onForceMute }: UseWebRTCParams): UseWebRTCReturn => {
   const [peers, setPeers] = useState<Map<string, IPeer>>(new Map());
   const pcsRef            = useRef<Map<string, RTCPeerConnection>>(new Map());
   // Tracks exactly which remote stream ID represents the screen share
@@ -292,17 +294,25 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
       screenSendersRef.current.delete(socketId);
     };
 
-    socket.on('peers',         handlePeers);
+    /**
+     * @description Handles an instructor-initiated force-mute targeting this client.
+     */
+    const handleForceMute = ({ kind }: { kind: 'audio' | 'video' }) => {
+      onForceMute?.(kind);
+    };
+
+    socket.on('peers',                 handlePeers);
     socket.on('peer-joined',   handlePeerJoined);
     socket.on('offer',         handleOffer);
     socket.on('answer',        handleAnswer);
     socket.on('ice-candidate', handleIce);
-    socket.on('peer-muted',    handlePeerMuted);
-    socket.on('peer-unmuted',  handlePeerUnmuted);
-    socket.on('peer-hand-raised', handlePeerHandRaised);
-    socket.on('peer-hand-lowered', handlePeerHandLowered);
-    socket.on('peer-left',     handlePeerLeft);
-    socket.on('set-screen-stream', handleSetScreenStream);
+    socket.on('peer-muted',            handlePeerMuted);
+    socket.on('peer-unmuted',          handlePeerUnmuted);
+    socket.on('peer-hand-raised',      handlePeerHandRaised);
+    socket.on('peer-hand-lowered',     handlePeerHandLowered);
+    socket.on('peer-left',             handlePeerLeft);
+    socket.on('set-screen-stream',     handleSetScreenStream);
+    socket.on('instructor-force-mute', handleForceMute);
 
     // Join the room
     socket.connect();
@@ -320,6 +330,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream }:
       socket.off('peer-hand-lowered');
       socket.off('peer-left');
       socket.off('set-screen-stream');
+      socket.off('instructor-force-mute');
       socket.emit('leave', { roomCode });
       socket.disconnect();
       pcsRef.current.forEach((pc) => pc.close());

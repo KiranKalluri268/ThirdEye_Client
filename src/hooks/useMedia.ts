@@ -18,6 +18,8 @@ interface UseMediaReturn {
   stopMedia:         () => void;
   toggleAudio:       () => void;
   toggleVideo:       () => void;
+  forceMuteAudio:    () => void;
+  forceMuteVideo:    () => void;
   startScreenShare:  () => Promise<void>;
   stopScreenShare:   () => void;
 }
@@ -97,6 +99,28 @@ const useMedia = (): UseMediaReturn => {
   }, []);
 
   /**
+   * @description Force-disables the audio track (instructor-initiated).
+   *              Unlike toggleAudio, this always mutes and never unmutes.
+   */
+  const forceMuteAudio = useCallback((): void => {
+    const track = streamRef.current?.getAudioTracks()[0];
+    if (!track) return;
+    track.enabled = false;
+    setIsMuted(true);
+  }, []);
+
+  /**
+   * @description Force-disables the video track (instructor-initiated).
+   *              Unlike toggleVideo, this always turns camera off and never on.
+   */
+  const forceMuteVideo = useCallback((): void => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    track.enabled = false;
+    setIsCamOff(true);
+  }, []);
+
+  /**
    * @description Starts a screen share by requesting display media.
    *              On stream end (user stops sharing), resets state automatically.
    * @throws {Error} If screen share permission is denied
@@ -132,6 +156,7 @@ const useMedia = (): UseMediaReturn => {
     isMuted, isCamOff, isSharingScreen,
     startMedia, stopMedia,
     toggleAudio, toggleVideo,
+    forceMuteAudio, forceMuteVideo,
     startScreenShare, stopScreenShare,
   };
 };

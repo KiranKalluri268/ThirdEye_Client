@@ -43,14 +43,18 @@ const Classroom: React.FC = () => {
   const { user }      = useAuth();
 
   // ── UI state ────────────────────────────────────────────────────────────────
-  const [session,      setSession]      = useState<ISession | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [isChatOpen,   setIsChatOpen]   = useState(false);
-  const [isPeopleOpen, setIsPeopleOpen] = useState(false);
-  const [isHandRaised, setIsHandRaised] = useState(false);
+  const [session,        setSession]        = useState<ISession | null>(null);
+  const [loading,        setLoading]        = useState(true);
+  const [isChatOpen,     setIsChatOpen]     = useState(false);
+  const [isPeopleOpen,   setIsPeopleOpen]   = useState(false);
+  const [isHandRaised,   setIsHandRaised]   = useState(false);
   const [toast, setToast] = useState<{ open: boolean; msg: string; severity: 'info' | 'warning' }>(
     { open: false, msg: '', severity: 'info' }
   );
+
+  // ── Instructor media-control permissions (instructor only) ──────────────────
+  const [allowUnmute,    setAllowUnmute]    = useState(false);
+  const [allowCamToggle, setAllowCamToggle] = useState(false);
 
   // ── Phase 2: instructor engagement map ─────────────────────────────────────
   const [peerEngagementMap, setPeerEngagementMap] =
@@ -66,7 +70,8 @@ const Classroom: React.FC = () => {
   const {
     localStream, screenStream, isMuted, isCamOff, isSharingScreen,
     startMedia, stopMedia,
-    toggleAudio, toggleVideo, startScreenShare, stopScreenShare,
+    toggleAudio, toggleVideo, forceMuteAudio, forceMuteVideo,
+    startScreenShare, stopScreenShare,
   } = useMedia();
 
   const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
@@ -76,7 +81,18 @@ const Classroom: React.FC = () => {
     userId:      user?._id || '',
     displayName: user?.name || 'Anonymous',
     localStream,
-    screenStream, // Phase 2: enables replaceTrack on screenshare toggle
+    screenStream,
+    onForceMute: (kind) => {
+      if (kind === 'audio') {
+        forceMuteAudio();
+        socket.emit('mute', { roomCode, kind: 'audio' });
+        setToast({ open: true, msg: '🔇 The instructor has muted your microphone', severity: 'info' });
+      } else {
+        forceMuteVideo();
+        socket.emit('mute', { roomCode, kind: 'video' });
+        setToast({ open: true, msg: '📷 The instructor has turned off your camera', severity: 'info' });
+      }
+    },
   });
 
   // Phase 2: engagement inference — students only, starts after stream is ready
@@ -124,6 +140,34 @@ const Classroom: React.FC = () => {
     socket.on('session-ended', handleSessionEnded);
     return () => { socket.off('session-ended', handleSessionEnded); };
   }, [navigate]);
+
+  /**
+   * @description Auto-mute student audio on join (mic is OFF by default).
+   *              Fires once when the local media stream becomes available.
+   */
+  useEffect(() => {
+    if (!isInstructor && localStream) {
+      forceMuteAudio();
+      socket.emit('mute', { roomCode, kind: 'audio' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localStream]); // intentionally run once when stream is ready
+
+  /**
+   * @description Listens for instructor permission changes broadcast by the server.
+   *              Updates local allowUnmute / allowCamToggle state for ALL clients
+   *              (instructor receives their own emit echoed back; students receive it too).
+   */
+  useEffect(() => {
+    const handlePermissions = ({ allowUnmute, allowCamToggle }: {
+      allowUnmute: boolean; allowCamToggle: boolean;
+    }) => {
+      setAllowUnmute(allowUnmute);
+      setAllowCamToggle(allowCamToggle);
+    };
+    socket.on('permissions-updated', handlePermissions);
+    return () => { socket.off('permissions-updated', handlePermissions); };
+  }, []);
 
   /**
    * @description Phase 2: instructor listens for peer-engagement events
@@ -253,6 +297,67 @@ const Classroom: React.FC = () => {
     });
   }, []);
 
+  /**
+   * @description Instructor: toggles the "Allow Unmute" permission.
+   *              When turned OFF, force-mutes all students' microphones.
+   */
+  const handleToggleAllowUnmute = useCallback(() => {
+    setAllowUnmute((prev) => {
+      const next = !prev;
+      if (!next) socket.emit('force-mute-all', { roomCode, kind: 'audio' });
+      // Broadcast new permissions state to all students
+      socket.emit('set-permissions', { roomCode, allowUnmute: next, allowCamToggle });
+      return next;
+    });
+  }, [roomCode, allowCamToggle]);
+
+  /**
+   * @description Instructor: toggles the "Allow students to stop camera" permission.
+   *              When OFF → students cannot turn their camera off (camera stays ON).
+   *              No forced video-mute is emitted; we simply restrict the button.
+   */
+  const handleToggleAllowCam = useCallback(() => {
+    setAllowCamToggle((prev) => {
+      const next = !prev;
+      // Broadcast new permissions state to all students
+      socket.emit('set-permissions', { roomCode, allowUnmute, allowCamToggle: next });
+      return next;
+    });
+  }, [roomCode, allowUnmute]);
+
+  /**
+   * @description Instructor: mutes a specific peer's audio or video.
+   */
+  const handleMutePeer = useCallback((targetSocketId: string, kind: 'audio' | 'video') => {
+    socket.emit('force-mute-peer', { roomCode, targetSocketId, kind });
+  }, [roomCode]);
+
+  /**
+   * @description Student: attempts to toggle audio. Shows toast if instructor has locked mute.
+   */
+  const handleStudentToggleAudio = useCallback(() => {
+    if (!allowUnmute && isMuted) {
+      setToast({ open: true, msg: '🔇 The instructor has muted all participants', severity: 'info' });
+      return;
+    }
+    toggleAudio();
+    socket.emit(isMuted ? 'unmute' : 'mute', { roomCode, kind: 'audio' });
+  }, [allowUnmute, isMuted, toggleAudio, roomCode]);
+
+  /**
+   * @description Student: attempts to toggle camera.
+   *              Blocked with toast only when allowCamToggle = false AND the student is
+   *              trying to turn the camera OFF (i.e. it is currently ON).
+   */
+  const handleStudentToggleVideo = useCallback(() => {
+    if (!allowCamToggle && !isCamOff) {
+      setToast({ open: true, msg: '📷 The instructor has disabled camera control', severity: 'info' });
+      return;
+    }
+    toggleVideo();
+    socket.emit(isCamOff ? 'unmute' : 'mute', { roomCode, kind: 'video' });
+  }, [allowCamToggle, isCamOff, toggleVideo, roomCode]);
+
   // ── Loading state ─────────────────────────────────────────────────────────
 
   if (loading || !user || !session) {
@@ -342,12 +447,18 @@ const Classroom: React.FC = () => {
           />
         )}
 
-        {/* Participants sidebar (Phase 1 bug fix) */}
+        {/* Participants sidebar */}
         {isPeopleOpen && (
           <PeoplePanel
             peers={peers}
             localUser={user}
             onClose={() => setIsPeopleOpen(false)}
+            isInstructor={isInstructor}
+            allowUnmute={allowUnmute}
+            allowCamToggle={allowCamToggle}
+            onToggleAllowUnmute={handleToggleAllowUnmute}
+            onToggleAllowCam={handleToggleAllowCam}
+            onMutePeer={handleMutePeer}
           />
         )}
       </div>
@@ -369,8 +480,10 @@ const Classroom: React.FC = () => {
         isPeopleOpen={isPeopleOpen}
         isHandRaised={isHandRaised}
         isInstructor={isInstructor}
-        onToggleAudio={toggleAudio}
-        onToggleVideo={toggleVideo}
+        audioLocked={!isInstructor && !allowUnmute && isMuted}
+        videoLocked={!isInstructor && !allowCamToggle && !isCamOff}
+        onToggleAudio={isInstructor ? toggleAudio : handleStudentToggleAudio}
+        onToggleVideo={isInstructor ? toggleVideo : handleStudentToggleVideo}
         onToggleScreen={isSharingScreen ? stopScreenShare : startScreenShare}
         onToggleChat={handleToggleChat}
         onTogglePeople={handleTogglePeople}

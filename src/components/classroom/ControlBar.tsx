@@ -6,10 +6,11 @@
  */
 
 import React, { useState } from 'react';
-import { Tooltip, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Tooltip, IconButton, Menu, MenuItem, ListItemIcon, ListItemText, Badge } from '@mui/material';
 import MicIcon            from '@mui/icons-material/Mic';
 import MicOffIcon         from '@mui/icons-material/MicOff';
 import MoreVertIcon       from '@mui/icons-material/MoreVert';
+import LockIcon           from '@mui/icons-material/Lock';
 import VideocamIcon       from '@mui/icons-material/Videocam';
 import VideocamOffIcon    from '@mui/icons-material/VideocamOff';
 import ScreenShareIcon    from '@mui/icons-material/ScreenShare';
@@ -28,6 +29,10 @@ interface ControlBarProps {
   isPeopleOpen:     boolean;
   isInstructor:     boolean;
   isHandRaised:     boolean;
+  /** True when instructor has locked the student's mic (shows lock badge) */
+  audioLocked?:     boolean;
+  /** True when instructor has locked the student's camera (shows lock badge) */
+  videoLocked?:     boolean;
   onToggleAudio:    () => void;
   onToggleVideo:    () => void;
   onToggleScreen:   () => void;
@@ -41,7 +46,7 @@ interface ControlBarProps {
 /** Styled icon button used for all control bar actions */
 const ControlButton: React.FC<{
   tooltip: string;
-  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onClick: () => void;
   active?: boolean;
   danger?: boolean;
   children: React.ReactNode;
@@ -76,6 +81,7 @@ const ControlButton: React.FC<{
 const ControlBar: React.FC<ControlBarProps> = ({
   isMuted, isCamOff, isSharingScreen,
   isChatOpen, isPeopleOpen, isInstructor, isHandRaised,
+  audioLocked = false, videoLocked = false,
   onToggleAudio, onToggleVideo, onToggleScreen,
   onToggleChat, onTogglePeople, onToggleHandRaise, onLeave, onEndSession,
 }) => {
@@ -98,13 +104,35 @@ const ControlBar: React.FC<ControlBarProps> = ({
         flexShrink:  0,
       }}
     >
-      <ControlButton tooltip={isMuted ? 'Unmute' : 'Mute'} onClick={onToggleAudio} active={isMuted}>
-        {isMuted ? <MicOffIcon /> : <MicIcon />}
-      </ControlButton>
+      <Tooltip title={isMuted ? (audioLocked ? 'Muted by instructor' : 'Unmute') : 'Mute'} placement="top">
+        <span>
+          <Badge
+            badgeContent={audioLocked ? <LockIcon sx={{ fontSize: 9 }} /> : null}
+            color="error"
+            overlap="circular"
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          >
+            <ControlButton tooltip="" onClick={onToggleAudio} active={isMuted}>
+              {isMuted ? <MicOffIcon /> : <MicIcon />}
+            </ControlButton>
+          </Badge>
+        </span>
+      </Tooltip>
 
-      <ControlButton tooltip={isCamOff ? 'Turn on camera' : 'Turn off camera'} onClick={onToggleVideo} active={isCamOff}>
-        {isCamOff ? <VideocamOffIcon /> : <VideocamIcon />}
-      </ControlButton>
+      <Tooltip title={isCamOff ? (videoLocked ? 'Camera disabled by instructor' : 'Turn on camera') : 'Turn off camera'} placement="top">
+        <span>
+          <Badge
+            badgeContent={videoLocked ? <LockIcon sx={{ fontSize: 9 }} /> : null}
+            color="error"
+            overlap="circular"
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          >
+            <ControlButton tooltip="" onClick={onToggleVideo} active={isCamOff}>
+              {isCamOff ? <VideocamOffIcon /> : <VideocamIcon />}
+            </ControlButton>
+          </Badge>
+        </span>
+      </Tooltip>
 
       <ControlButton tooltip={isSharingScreen ? 'Stop sharing' : 'Share screen'} onClick={onToggleScreen} active={isSharingScreen}>
         {isSharingScreen ? <StopScreenShareIcon /> : <ScreenShareIcon />}
@@ -114,9 +142,21 @@ const ControlBar: React.FC<ControlBarProps> = ({
 
       {/* Mobile-only: 3-Dots More Options Menu */}
       <div className="block md:hidden">
-        <ControlButton tooltip="More options" onClick={handleMenuClick}>
-          <MoreVertIcon />
-        </ControlButton>
+        <Tooltip title="More options" placement="top">
+          <IconButton
+            onClick={handleMenuClick}
+            sx={{
+              width: 40, height: 40, borderRadius: '50%',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+              margin: '10px 4px',
+              '&:hover': { background: 'var(--bg-tile)', transform: 'scale(1.08)' },
+            }}
+          >
+            <MoreVertIcon />
+          </IconButton>
+        </Tooltip>
         <Menu
           anchorEl={anchorEl}
           open={open}
