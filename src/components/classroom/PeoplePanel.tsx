@@ -29,8 +29,8 @@ interface PeoplePanelProps {
   allowCamToggle?:       boolean;
   onToggleAllowUnmute?:  () => void;
   onToggleAllowCam?:     () => void;
-  /** Mute a specific peer's audio or video */
-  onMutePeer?:           (socketId: string, kind: 'audio' | 'video') => void;
+  /** Toggle a specific peer's audio or video */
+  onTogglePeerMedia?:    (socketId: string, kind: 'audio' | 'video', isCurrentlyMuted: boolean) => void;
 }
 
 /**
@@ -96,8 +96,8 @@ const ParticipantRow: React.FC<{
 
 const InstructorPeerRow: React.FC<{
   peer:        IPeer;
-  onMuteMic:   () => void;
-}> = ({ peer, onMuteMic }) => (
+  onToggleMic: () => void;
+}> = ({ peer, onToggleMic }) => (
   <div
     className="flex items-center gap-3 rounded-lg"
     style={{ padding: '8px 16px', transition: 'background 0.15s' }}
@@ -130,11 +130,14 @@ const InstructorPeerRow: React.FC<{
       {/* Mic toggle button */}
       <IconButton
         size="small"
-        onClick={onMuteMic}
-        title={peer.isMuted ? 'Mic is muted' : 'Mute this student'}
+        onClick={onToggleMic}
+        title={peer.isMuted ? 'Unmute this student' : 'Mute this student'}
         sx={{
           color:  peer.isMuted ? 'var(--danger)' : 'var(--text-secondary)',
-          '&:hover': { color: 'var(--danger)', background: 'rgba(255,71,87,0.1)' },
+          '&:hover': {
+            color: peer.isMuted ? 'var(--success)' : 'var(--danger)',
+            background: peer.isMuted ? 'rgba(46, 213, 115, 0.1)' : 'rgba(255,71,87,0.1)'
+          },
         }}
       >
         {peer.isMuted
@@ -155,7 +158,7 @@ const PeoplePanel: React.FC<PeoplePanelProps> = ({
   allowCamToggle = false,
   onToggleAllowUnmute,
   onToggleAllowCam,
-  onMutePeer,
+  onTogglePeerMedia,
 }) => {
   const totalCount = peers.size + 1;
 
@@ -248,7 +251,7 @@ const PeoplePanel: React.FC<PeoplePanelProps> = ({
             <InstructorPeerRow
               key={peer.socketId}
               peer={peer}
-              onMuteMic={() => onMutePeer?.(peer.socketId, 'audio')}
+              onToggleMic={() => onTogglePeerMedia?.(peer.socketId, 'audio', peer.isMuted)}
             />
           ) : (
             <ParticipantRow

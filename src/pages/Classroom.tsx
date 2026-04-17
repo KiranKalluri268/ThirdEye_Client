@@ -30,6 +30,7 @@ import PeoplePanel         from '../components/classroom/PeoplePanel';
 import SessionTimer        from '../components/classroom/SessionTimer';
 import EngagementDashboard from '../components/classroom/EngagementDashboard';
 import DebugOverlay        from '../components/classroom/DebugOverlay';
+import PreJoinScreen       from '../components/classroom/PreJoinScreen';
 
 import type { IRoom, ISession, EngagementLabel, IPeerEngagementEvent } from '../types';
 
@@ -45,6 +46,7 @@ const Classroom: React.FC = () => {
   // ── UI state ────────────────────────────────────────────────────────────────
   const [session,        setSession]        = useState<ISession | null>(null);
   const [loading,        setLoading]        = useState(true);
+  const [hasJoined,      setHasJoined]      = useState(false); // controls pre-join lobby
   const [isChatOpen,     setIsChatOpen]     = useState(false);
   const [isPeopleOpen,   setIsPeopleOpen]   = useState(false);
   const [isHandRaised,   setIsHandRaised]   = useState(false);
@@ -71,6 +73,7 @@ const Classroom: React.FC = () => {
     localStream, screenStream, isMuted, isCamOff, isSharingScreen,
     startMedia, stopMedia,
     toggleAudio, toggleVideo, forceMuteAudio, forceMuteVideo,
+    forceUnmuteAudio, forceUnmuteVideo,
     startScreenShare, stopScreenShare,
   } = useMedia();
 
@@ -82,6 +85,7 @@ const Classroom: React.FC = () => {
     displayName: user?.name || 'Anonymous',
     localStream,
     screenStream,
+    ready:       isInstructor ? true : hasJoined, // students wait for lobby confirm
     onForceMute: (kind) => {
       if (kind === 'audio') {
         forceMuteAudio();
@@ -93,14 +97,25 @@ const Classroom: React.FC = () => {
         setToast({ open: true, msg: '📷 The instructor has turned off your camera', severity: 'info' });
       }
     },
+    onForceUnmute: (kind) => {
+      if (kind === 'audio') {
+        forceUnmuteAudio();
+        socket.emit('unmute', { roomCode, kind: 'audio' });
+        setToast({ open: true, msg: '🎙️ The instructor has enabled your microphone', severity: 'info' });
+      } else {
+        forceUnmuteVideo();
+        socket.emit('unmute', { roomCode, kind: 'video' });
+        setToast({ open: true, msg: '📷 The instructor has turned on your camera', severity: 'info' });
+      }
+    },
   });
 
-  // Phase 2: engagement inference — students only, starts after stream is ready
+  // Phase 2: engagement inference — students only, after lobby confirmed
   const { engagementResult, isInferring, inferenceError } = useEngagement({
     localVideoRef: localVideoRef as React.RefObject<HTMLVideoElement>,
     roomCode:  roomCode || '',
     sessionId: session?._id || '',
-    enabled:   !!localStream && !isInstructor,
+    enabled:   !!localStream && !isInstructor && hasJoined,
   });
 
   // ── Effects ─────────────────────────────────────────────────────────────────
@@ -142,16 +157,18 @@ const Classroom: React.FC = () => {
   }, [navigate]);
 
   /**
-   * @description Auto-mute student audio on join (mic is OFF by default).
-   *              Fires once when the local media stream becomes available.
+   * @description After joining the room, emit the student's initial mute state so
+   *              existing peers display the correct mic/cam status icons immediately.
    */
   useEffect(() => {
-    if (!isInstructor && localStream) {
-      forceMuteAudio();
-      socket.emit('mute', { roomCode, kind: 'audio' });
-    }
+    if (!hasJoined || isInstructor) return;
+    const timer = setTimeout(() => {
+      if (isMuted)  socket.emit('mute', { roomCode, kind: 'audio' });
+      if (isCamOff) socket.emit('mute', { roomCode, kind: 'video' });
+    }, 600); // slight delay to ensure the join handshake finishes first
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localStream]); // intentionally run once when stream is ready
+  }, [hasJoined]); // only run once on join
 
   /**
    * @description Listens for instructor permission changes broadcast by the server.
@@ -321,15 +338,21 @@ const Classroom: React.FC = () => {
       const next = !prev;
       // Broadcast new permissions state to all students
       socket.emit('set-permissions', { roomCode, allowUnmute, allowCamToggle: next });
+      // When instructor disables stopping camera, force turn ON everyone's camera
+      if (!next) socket.emit('force-unmute-all', { roomCode, kind: 'video' });
       return next;
     });
   }, [roomCode, allowUnmute]);
 
   /**
-   * @description Instructor: mutes a specific peer's audio or video.
+   * @description Instructor: toggles a specific peer's audio or video state.
    */
-  const handleMutePeer = useCallback((targetSocketId: string, kind: 'audio' | 'video') => {
-    socket.emit('force-mute-peer', { roomCode, targetSocketId, kind });
+  const handleTogglePeerMedia = useCallback((targetSocketId: string, kind: 'audio' | 'video', isCurrentlyMuted: boolean) => {
+    if (isCurrentlyMuted) {
+      socket.emit('force-unmute-peer', { roomCode, targetSocketId, kind });
+    } else {
+      socket.emit('force-mute-peer', { roomCode, targetSocketId, kind });
+    }
   }, [roomCode]);
 
   /**
@@ -371,6 +394,23 @@ const Classroom: React.FC = () => {
           <p style={{ color: 'var(--text-secondary)' }}>Joining session…</p>
         </div>
       </div>
+    );
+  }
+
+  // ── Pre-join lobby (students only) ──────────────────────────────────────────
+  if (!isInstructor && !hasJoined) {
+    return (
+      <PreJoinScreen
+        session={session}
+        user={user}
+        localStream={localStream}
+        isMuted={isMuted}
+        isCamOff={isCamOff}
+        onToggleAudio={toggleAudio}
+        onToggleVideo={toggleVideo}
+        onForceMuteAudio={forceMuteAudio}
+        onJoin={() => setHasJoined(true)}
+      />
     );
   }
 
@@ -458,7 +498,7 @@ const Classroom: React.FC = () => {
             allowCamToggle={allowCamToggle}
             onToggleAllowUnmute={handleToggleAllowUnmute}
             onToggleAllowCam={handleToggleAllowCam}
-            onMutePeer={handleMutePeer}
+            onTogglePeerMedia={handleTogglePeerMedia}
           />
         )}
       </div>

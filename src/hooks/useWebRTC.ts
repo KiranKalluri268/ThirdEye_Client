@@ -33,6 +33,10 @@ interface UseWebRTCParams {
   screenStream: MediaStream | null;
   /** Called when the instructor force-mutes this client */
   onForceMute?: (kind: 'audio' | 'video') => void;
+  /** Called when the instructor force-unmutes this client */
+  onForceUnmute?: (kind: 'audio' | 'video') => void;
+  /** When false, the hook registers listeners but does not emit 'join' — used by pre-join lobby */
+  ready?: boolean;
 }
 
 interface UseWebRTCReturn {
@@ -48,7 +52,7 @@ interface UseWebRTCReturn {
  * @param localStream - Local camera/mic stream to send to peers
  * @returns {Map<string, IPeer>} Live map of connected peers
  */
-const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, onForceMute }: UseWebRTCParams): UseWebRTCReturn => {
+const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, onForceMute, onForceUnmute, ready = true }: UseWebRTCParams): UseWebRTCReturn => {
   const [peers, setPeers] = useState<Map<string, IPeer>>(new Map());
   const pcsRef            = useRef<Map<string, RTCPeerConnection>>(new Map());
   // Tracks exactly which remote stream ID represents the screen share
@@ -148,7 +152,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
   }, []);
 
   useEffect(() => {
-    if (!localStream) return;
+    if (!localStream || !ready) return; // wait for pre-join confirmation
 
     /**
      * @description Received on join: list of peers already in the room.
@@ -301,11 +305,18 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
       onForceMute?.(kind);
     };
 
+    /**
+     * @description Handles an instructor-initiated force-unmute targeting this client.
+     */
+    const handleForceUnmute = ({ kind }: { kind: 'audio' | 'video' }) => {
+      onForceUnmute?.(kind);
+    };
+
     socket.on('peers',                 handlePeers);
-    socket.on('peer-joined',   handlePeerJoined);
-    socket.on('offer',         handleOffer);
-    socket.on('answer',        handleAnswer);
-    socket.on('ice-candidate', handleIce);
+    socket.on('peer-joined',           handlePeerJoined);
+    socket.on('offer',                 handleOffer);
+    socket.on('answer',                handleAnswer);
+    socket.on('ice-candidate',         handleIce);
     socket.on('peer-muted',            handlePeerMuted);
     socket.on('peer-unmuted',          handlePeerUnmuted);
     socket.on('peer-hand-raised',      handlePeerHandRaised);
@@ -313,6 +324,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
     socket.on('peer-left',             handlePeerLeft);
     socket.on('set-screen-stream',     handleSetScreenStream);
     socket.on('instructor-force-mute', handleForceMute);
+    socket.on('instructor-force-unmute', handleForceUnmute);
 
     // Join the room
     socket.connect();
@@ -331,13 +343,17 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
       socket.off('peer-left');
       socket.off('set-screen-stream');
       socket.off('instructor-force-mute');
-      socket.emit('leave', { roomCode });
-      socket.disconnect();
-      pcsRef.current.forEach((pc) => pc.close());
+      socket.off('instructor-force-unmute');
+
+      if (localStream) {
+        pcsRef.current.forEach(pc => pc.close());
+      }
       pcsRef.current.clear();
       screenSendersRef.current.clear();
+      socket.emit('leave', { roomCode });
+      socket.disconnect();
     };
-  }, [localStream, roomCode, userId, displayName, createPC, removePC, screenStream]);
+  }, [localStream, ready, roomCode, userId, displayName, createPC, removePC, screenStream]);
 
   /**
    * @description Whenever the screenStream toggles, we add or remove the track

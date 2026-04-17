@@ -256,16 +256,22 @@ const EngagementDashboard: React.FC<EngagementDashboardProps> = ({
       style={{
         background:      'var(--bg-surface)',
         borderTop:       '1px solid var(--border)',
-        padding:         '10px 20px',
         flexShrink:      0,
-        display:         'flex',
-        alignItems:      'center',
-        justifyContent:  'flex-start',
-        gap:             20,
         overflowX:       'auto',
-        whiteSpace:      'nowrap',
       }}
     >
+      <div
+        style={{
+          display:         'flex',
+          alignItems:      'center',
+          justifyContent:  'center',
+          padding:         '10px 20px',
+          minWidth:        'max-content',
+          width:           'fit-content',
+          margin:          '0 auto',
+          gap:             20,
+        }}
+      >
       {/* Left: label counts */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
         <span
@@ -345,6 +351,7 @@ const EngagementDashboard: React.FC<EngagementDashboardProps> = ({
       <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
         Last {Math.round((history.length * 3) / 60 * 10) / 10}m
       </span>
+      </div>
     </div>
   );
 };
