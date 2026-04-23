@@ -15,6 +15,7 @@ import CloseIcon        from '@mui/icons-material/Close';
 import DashboardIcon    from '@mui/icons-material/Dashboard';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import LogoutIcon       from '@mui/icons-material/Logout';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 import Logo         from './Logo';
 import ToastRenderer from './Toast';
@@ -28,10 +29,8 @@ interface NavItem {
   icon:  React.ReactNode;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon    sx={{ fontSize: 20 }} /> },
-  { label: 'Sessions',  path: '/sessions',  icon: <VideoLibraryIcon sx={{ fontSize: 20 }} /> },
-];
+
+
 
 /* ── Sidebar content (shared between desktop + mobile drawer) ─────────── */
 
@@ -42,7 +41,15 @@ const SidebarContent: React.FC<{
   userName: string;
   userRole: string;
   userColor: string;
-}> = ({ onNavigate, currentPath, onLogout, userName, userRole, userColor }) => (
+}> = ({ onNavigate, currentPath, onLogout, userName, userRole, userColor }) => {
+  const navItems: NavItem[] = userRole === 'admin'
+    ? [{ label: 'Admin Panel', path: '/admin', icon: <AdminPanelSettingsIcon sx={{ fontSize: 20 }} /> }]
+    : [
+        { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon    sx={{ fontSize: 20 }} /> },
+        { label: 'Sessions',  path: '/sessions',  icon: <VideoLibraryIcon sx={{ fontSize: 20 }} /> },
+      ];
+
+  return (
   <div
     style={{
       display: 'flex',
@@ -58,7 +65,7 @@ const SidebarContent: React.FC<{
 
     {/* Nav links */}
     <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, padding: '0 12px' }}>
-      {NAV_ITEMS.map(({ label, path, icon }) => {
+      {navItems.map(({ label, path, icon }) => {
         const active = currentPath === path || currentPath.startsWith(path + '/');
         return (
           <button
@@ -154,7 +161,8 @@ const SidebarContent: React.FC<{
       </IconButton>
     </div>
   </div>
-);
+  );
+};
 
 /* ── AppShell ─────────────────────────────────────────────────────────── */
 

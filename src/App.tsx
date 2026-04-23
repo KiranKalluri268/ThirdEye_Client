@@ -20,6 +20,7 @@ import Dashboard        from './pages/Dashboard';
 import Sessions         from './pages/Sessions';
 import Classroom        from './pages/Classroom';
 import SessionAnalytics from './pages/SessionAnalytics';
+import AdminDashboard   from './pages/AdminDashboard';
 
 /* ── MUI Theme ─────────────────────────────────────────────────────────── */
 
@@ -143,6 +144,7 @@ const AnimatedRoutesWrapper: React.FC = () => (
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/sessions" element={<Sessions />} />
         <Route path="/sessions/:sessionId/analytics" element={<SessionAnalytics />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Route>
 
     {/* Default redirect */}
