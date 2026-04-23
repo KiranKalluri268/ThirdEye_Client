@@ -55,6 +55,8 @@ interface UseWebRTCReturn {
 const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, onForceMute, onForceUnmute, ready = true }: UseWebRTCParams): UseWebRTCReturn => {
   const [peers, setPeers] = useState<Map<string, IPeer>>(new Map());
   const pcsRef            = useRef<Map<string, RTCPeerConnection>>(new Map());
+  // Always-fresh mirror of peers state — safe to read inside socket event handlers
+  const peersRef          = useRef<Map<string, IPeer>>(new Map());
   // Tracks exactly which remote stream ID represents the screen share
   const screenStreamIdsRef = useRef<Map<string, string>>(new Map());
   // Tracks dynamically added senders
@@ -110,11 +112,15 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
         // If we know the exact screen ID, check it. Otherwise assume the 2nd stream is a screen fallback
         const isLikelyScreen = (knownScreenId && remoteStream.id === knownScreenId) || 
                                (existing?.stream && existing.stream.id !== remoteStream.id);
+
+        // Prefer whatever name is already stored in state; fall back to the
+        // name passed into createPC (which itself comes from the offer payload).
+        const resolvedName = existing?.displayName || peerDisplayName;
         
         updated.set(peerId, {
           socketId:    peerId,
           userId:      existing?.userId || '',
-          displayName: peerDisplayName,
+          displayName: resolvedName,
           stream:      isLikelyScreen ? (existing?.stream || null) : remoteStream,
           screenStream: isLikelyScreen ? remoteStream : (existing?.screenStream || null),
           isMuted:     existing?.isMuted  || false,
@@ -122,6 +128,7 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
           isSpeaking:  false,
           isHandRaised: existing?.isHandRaised || false,
         });
+        peersRef.current = updated;
         return updated;
       });
     };
@@ -167,11 +174,15 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
           screenSendersRef.current.set(peer.socketId, pc.addTrack(track, screenStream));
           socket.emit('set-screen-stream', { roomCode, screenStreamId: screenStream.id });
         }
-        setPeers((prev) => new Map(prev).set(peer.socketId, {
-          socketId: peer.socketId, userId: peer.userId,
-          displayName: peer.displayName, stream: null, screenStream: null,
-          isMuted: false, isCamOff: false, isSpeaking: false, isHandRaised: peer.isHandRaised || false,
-        }));
+        setPeers((prev) => {
+          const updated = new Map(prev).set(peer.socketId, {
+            socketId: peer.socketId, userId: peer.userId,
+            displayName: peer.displayName, stream: null, screenStream: null,
+            isMuted: false, isCamOff: false, isSpeaking: false, isHandRaised: peer.isHandRaised || false,
+          });
+          peersRef.current = updated;
+          return updated;
+        });
         // Note: onnegotiationneeded handles the offer creation now!
       }
     };
@@ -181,29 +192,50 @@ const useWebRTC = ({ roomCode, userId, displayName, localStream, screenStream, o
      *              We just add them to state; the offer handler creates the PC.
      */
     const handlePeerJoined = (peer: { socketId: string; userId: string; displayName: string; isHandRaised?: boolean }) => {
-      setPeers((prev) => new Map(prev).set(peer.socketId, {
-        socketId: peer.socketId, userId: peer.userId,
-        displayName: peer.displayName, stream: null, screenStream: null,
-        isMuted: false, isCamOff: false, isSpeaking: false, isHandRaised: peer.isHandRaised || false,
-      }));
+      setPeers((prev) => {
+        const updated = new Map(prev).set(peer.socketId, {
+          socketId: peer.socketId, userId: peer.userId,
+          displayName: peer.displayName, stream: null, screenStream: null,
+          isMuted: false, isCamOff: false, isSpeaking: false, isHandRaised: peer.isHandRaised || false,
+        });
+        peersRef.current = updated;
+        return updated;
+      });
     };
 
     /**
      * @description Incoming SDP offer from a peer. Create a PC, set remote desc,
      *              create answer, set local desc, and send the answer back.
      */
-    const handleOffer = async (data: { from: string; sdp: RTCSessionDescriptionInit }) => {
-      const existingPeer = [...peers.values()].find((p) => p.socketId === data.from);
+    const handleOffer = async (data: { from: string; sdp: RTCSessionDescriptionInit; displayName?: string }) => {
+      // Use the name carried in the offer payload first (server always sends it),
+      // then fall back to whatever the peersRef already has.  This eliminates the
+      // race condition where an offer arrives before peer-joined is processed.
+      const existingPeer = peersRef.current.get(data.from);
+      const resolvedName = data.displayName || existingPeer?.displayName || 'Unknown';
+
       let pc = pcsRef.current.get(data.from);
       if (!pc) {
-        pc = createPC(data.from, existingPeer?.displayName || 'Peer');
+        pc = createPC(data.from, resolvedName);
         if (screenStream) {
           const track = screenStream.getVideoTracks()[0];
           screenSendersRef.current.set(data.from, pc.addTrack(track, screenStream));
           socket.emit('set-screen-stream', { roomCode, screenStreamId: screenStream.id });
         }
       }
-      // If signaling state isn't stable, setting remote offer can clash. 
+      // If the peer was already known but had a placeholder name, update it now
+      if (existingPeer && existingPeer.displayName !== resolvedName) {
+        setPeers((prev) => {
+          const updated = new Map(prev);
+          const p = updated.get(data.from);
+          if (p) {
+            updated.set(data.from, { ...p, displayName: resolvedName });
+            peersRef.current = updated;
+          }
+          return updated;
+        });
+      }
+      // If signaling state isn't stable, setting remote offer can clash.
       if (pc.signalingState !== 'stable') {
          await Promise.all([pc.setLocalDescription({type: 'rollback'}), pc.setRemoteDescription(new RTCSessionDescription(data.sdp))]);
       } else {
