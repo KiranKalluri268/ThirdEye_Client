@@ -11,7 +11,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import AddIcon         from '@mui/icons-material/Add';
 import VideoCallIcon   from '@mui/icons-material/VideoCall';
-import HowToRegIcon    from '@mui/icons-material/HowToReg';
 import PlayArrowIcon   from '@mui/icons-material/PlayArrow';
 import BarChartIcon    from '@mui/icons-material/BarChart';
 
@@ -79,16 +78,7 @@ const Sessions: React.FC = () => {
     }
   };
 
-  /** Enrolls the student in a session and refreshes. */
-  const handleEnroll = async (sessionId: string): Promise<void> => {
-    try {
-      await api.post(`/sessions/${sessionId}/enroll`);
-      push('Enrolled successfully!', 'success');
-      fetchSessions();
-    } catch {
-      push('Enrollment failed.', 'error');
-    }
-  };
+
 
   const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
 
@@ -147,10 +137,6 @@ const Sessions: React.FC = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {sessions.map((session) => {
-              const isEnrolled = session.enrolledStudents?.some((s) =>
-                typeof s === 'string' ? s === user?._id : s._id === user?._id
-              );
-
               return (
                 <div
                   key={session._id}
@@ -238,20 +224,8 @@ const Sessions: React.FC = () => {
                         Rejoin
                       </Button>
                     )}
-                    {!isInstructor && session.status === 'scheduled' && !isEnrolled && (
-                      <Button
-                        size="small"
-                        startIcon={<HowToRegIcon />}
-                        onClick={() => handleEnroll(session._id)}
-                        sx={{
-                          border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: '8px',
-                          '&:hover': { background: 'var(--accent-glow)' },
-                        }}
-                      >
-                        Enroll
-                      </Button>
-                    )}
-                    {!isInstructor && session.status === 'active' && isEnrolled && (
+                    {/* Any student can join once the instructor starts the session */}
+                    {!isInstructor && session.status === 'active' && (
                       <Button
                         size="small"
                         startIcon={<VideoCallIcon />}
