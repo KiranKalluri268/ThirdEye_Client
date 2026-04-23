@@ -13,6 +13,7 @@ import AddIcon         from '@mui/icons-material/Add';
 import VideoCallIcon   from '@mui/icons-material/VideoCall';
 import PlayArrowIcon   from '@mui/icons-material/PlayArrow';
 import BarChartIcon    from '@mui/icons-material/BarChart';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 import api           from '../api/api';
 import useAuth       from '../hooks/useAuth';
@@ -79,6 +80,14 @@ const Sessions: React.FC = () => {
   };
 
 
+
+  const handleCopyInvite = (roomCode: string | undefined) => {
+    if (!roomCode) { push('No room code available yet.', 'error'); return; }
+    const inviteLink = `${window.location.origin}/join/${roomCode}`;
+    navigator.clipboard.writeText(inviteLink)
+      .then(() => push('Invite link copied!', 'success'))
+      .catch(() => push('Failed to copy link.', 'error'));
+  };
 
   const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
 
@@ -201,6 +210,16 @@ const Sessions: React.FC = () => {
                       </Tooltip>
                     )}
                     {isInstructor && session.status === 'scheduled' && (
+                      <Tooltip title="Copy Invite Link">
+                        <IconButton
+                          onClick={() => handleCopyInvite(session.roomCode || undefined)}
+                          sx={{ color: 'var(--text-secondary)', '&:hover': { color: 'var(--accent)', background: 'var(--bg-elevated)' } }}
+                        >
+                          <ContentCopyIcon sx={{ fontSize: 20 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {isInstructor && session.status === 'scheduled' && (
                       <Tooltip title="Start session">
                         <IconButton
                           id={`start-btn-${session._id}`}
@@ -212,17 +231,27 @@ const Sessions: React.FC = () => {
                       </Tooltip>
                     )}
                     {isInstructor && session.status === 'active' && (
-                      <Button
-                        size="small"
-                        startIcon={<VideoCallIcon />}
-                        onClick={() => navigate(`/classroom/${session.roomCode}`)}
-                        sx={{
-                          background: 'var(--accent)', color: '#fff', borderRadius: '8px',
-                          '&:hover': { background: 'var(--accent-dark)' },
-                        }}
-                      >
-                        Rejoin
-                      </Button>
+                      <>
+                        <Tooltip title="Copy Invite Link">
+                          <IconButton
+                            onClick={() => handleCopyInvite(session.roomCode || undefined)}
+                            sx={{ color: 'var(--text-secondary)', mr: 0.5, '&:hover': { color: 'var(--accent)', background: 'var(--bg-elevated)' } }}
+                          >
+                            <ContentCopyIcon sx={{ fontSize: 20 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Button
+                          size="small"
+                          startIcon={<VideoCallIcon />}
+                          onClick={() => navigate(`/classroom/${session.roomCode}`)}
+                          sx={{
+                            background: 'var(--accent)', color: '#fff', borderRadius: '8px',
+                            '&:hover': { background: 'var(--accent-dark)' },
+                          }}
+                        >
+                          Rejoin
+                        </Button>
+                      </>
                     )}
                     {/* Any student can join once the instructor starts the session */}
                     {!isInstructor && session.status === 'active' && (

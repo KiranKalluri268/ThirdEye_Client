@@ -37,8 +37,11 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Session expired — redirect to login if not already there
-      if (!window.location.pathname.startsWith('/login')) {
+      // Session expired — redirect to login if not already on a public route
+      const path = window.location.pathname;
+      const isPublicRoute = path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/join');
+      
+      if (!isPublicRoute) {
         window.location.href = '/login';
       }
     }

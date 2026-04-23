@@ -21,6 +21,7 @@ import Sessions         from './pages/Sessions';
 import Classroom        from './pages/Classroom';
 import SessionAnalytics from './pages/SessionAnalytics';
 import AdminDashboard   from './pages/AdminDashboard';
+import JoinSession      from './pages/JoinSession';
 
 /* ── MUI Theme ─────────────────────────────────────────────────────────── */
 
@@ -123,6 +124,7 @@ const AnimatedRoutesWrapper: React.FC = () => (
     {/* Public routes */}
     <Route path="/login"    element={<AnimatedRoutes><Login /></AnimatedRoutes>}    />
     <Route path="/register" element={<AnimatedRoutes><Register /></AnimatedRoutes>} />
+    <Route path="/join/:roomCode" element={<AnimatedRoutes><JoinSession /></AnimatedRoutes>} />
 
     {/* Classroom is completely full-screen & standalone */}
     <Route path="/classroom/:roomCode" element={
