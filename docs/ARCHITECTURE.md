@@ -62,9 +62,9 @@ sequenceDiagram
     B->>A: POST /api/auth/login
     A->>D: Find user and verify bcrypt hash
     D-->>A: User
-    A-->>B: User + JWT; set httpOnly cookie
+    A-->>B: Return user and JWT in httpOnly cookie
     B->>A: Authenticated REST request
-    Note over B,A: Cookie is sent with credentials; client may also send Bearer token
+    Note over B,A: Client sends credentials or a Bearer token
     A->>A: Verify JWT and role
     A->>D: Read or mutate data
     D-->>A: Result
@@ -149,4 +149,3 @@ erDiagram
 - Swagger UI is exposed at `/api/docs` only outside production.
 - Current Socket.IO handlers do not authenticate the connection or independently verify instructor-only events. Production hardening should derive identity and authorization from a verified socket handshake rather than event payloads.
 - Chat sender identity is currently supplied by the client. It should be derived from authenticated socket state in a hardened deployment.
-
