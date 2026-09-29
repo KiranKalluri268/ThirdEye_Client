@@ -13,6 +13,7 @@ interface AuthContextValue {
   user:     IUser | null;
   loading:  boolean;
   login:    (email: string, password: string) => Promise<void>;
+  googleLogin: (credential: string) => Promise<void>;
   register: (name: string, email: string, password: string, role: string) => Promise<void>;
   logout:   () => Promise<void>;
 }
@@ -65,6 +66,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(res.data.user);
   };
 
+  const googleLogin = async (credential: string): Promise<void> => {
+    const res = await api.post<{ token: string; user: IUser }>('/auth/google', { credential });
+    localStorage.setItem('thirdeye_token', res.data.token);
+    setUser(res.data.user);
+  };
+
   /**
    * @description Registers a new user and sets the user state.
    * @param name     - Full name
@@ -90,7 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, googleLogin, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

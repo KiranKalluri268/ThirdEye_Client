@@ -12,13 +12,14 @@ import SchoolIcon  from '@mui/icons-material/School';
 import PersonIcon  from '@mui/icons-material/Person';
 import useAuth from '../hooks/useAuth';
 import Logo    from '../components/layout/Logo';
+import GoogleSignIn from '../components/GoogleSignIn';
 
 /**
  * @description Renders the registration form with name, email, password,
  *              and role toggle. Calls auth.register() on submit.
  */
 const Register: React.FC = () => {
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate     = useNavigate();
 
   const [name,     setName]     = useState('');
@@ -110,6 +111,15 @@ const Register: React.FC = () => {
             {loading ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Create account'}
           </Button>
         </form>
+
+        <GoogleSignIn onCredential={async (credential) => {
+          setError(''); setLoading(true);
+          try { await googleLogin(credential); navigate('/dashboard'); }
+          catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            setError(msg || 'Google sign-in failed. Please try again.');
+          } finally { setLoading(false); }
+        }} />
 
         <p className="text-center text-sm mt-6" style={{ color: 'var(--text-secondary)' }}>
           Already have an account?{' '}

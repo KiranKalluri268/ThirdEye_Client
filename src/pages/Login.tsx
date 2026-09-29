@@ -10,13 +10,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TextField, Button, Alert, CircularProgress } from '@mui/material';
 import useAuth from '../hooks/useAuth';
 import Logo    from '../components/layout/Logo';
+import GoogleSignIn from '../components/GoogleSignIn';
 
 /**
  * @description Renders the login form. On submit, calls auth.login() and
  *              redirects to the dashboard. Shows inline error on failure.
  */
 const Login: React.FC = () => {
-  const { login }  = useAuth();
+  const { login, googleLogin }  = useAuth();
   const navigate   = useNavigate();
 
   const [email,    setEmail]    = useState('');
@@ -136,6 +137,15 @@ const Login: React.FC = () => {
               {loading ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Sign in'}
             </Button>
           </form>
+
+          <GoogleSignIn onCredential={async (credential) => {
+            setError(''); setLoading(true);
+            try { await googleLogin(credential); navigate('/dashboard'); }
+            catch (err: unknown) {
+              const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+              setError(msg || 'Google sign-in failed. Please try again.');
+            } finally { setLoading(false); }
+          }} />
 
           <p className="text-center text-sm mt-6" style={{ color: 'var(--text-secondary)' }}>
             Don't have an account?{' '}
