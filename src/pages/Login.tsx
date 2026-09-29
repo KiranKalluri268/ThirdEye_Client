@@ -138,6 +138,14 @@ const Login: React.FC = () => {
             </Button>
           </form>
 
+          {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+            <div className="flex items-center gap-4 mt-4" style={{ color: 'var(--text-secondary)' }}>
+              <span className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
+              <span className="text-xs font-medium">OR</span>
+              <span className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
+            </div>
+          )}
+
           <GoogleSignIn onCredential={async (credential) => {
             setError(''); setLoading(true);
             try { await googleLogin(credential); navigate('/dashboard'); }
